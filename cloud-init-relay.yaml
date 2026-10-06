@@ -1,0 +1,17 @@
+#cloud-config
+users:
+  - default
+  - name: relay
+    shell: /usr/sbin/nologin
+    ssh_authorized_keys:
+write_files:
+  - path: /etc/ssh/sshd_config.d/60-relay.conf
+    content: |
+      Match User relay
+        GatewayPorts clientspecified
+        AllowTcpForwarding remote
+        ClientAliveInterval 30
+runcmd:
+  - iptables -I INPUT -p tcp --dport 25565 -m state --state NEW -j ACCEPT
+  - sh -c 'iptables-save > /etc/iptables/rules.v4'
+  - systemctl restart ssh

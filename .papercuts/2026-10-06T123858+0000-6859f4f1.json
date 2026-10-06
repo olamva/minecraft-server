@@ -1,0 +1,15 @@
+{
+  "id": "6859f4f1",
+  "ts": "2026-10-06T12:38:58+00:00",
+  "text": "codex exec --approve-for-me still fails Computer Use with 'Computer Use was not approved to use Arc' when the user is away from the Mac",
+  "tags": [
+    "codex",
+    "computer-use",
+    "skills"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "447a9c01",
+  "where": "/Users/olavassbotn/.claude/skills/add-subdomain/SKILL.md",
+  "branch": ""
+}

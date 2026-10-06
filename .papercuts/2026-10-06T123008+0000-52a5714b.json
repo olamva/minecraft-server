@@ -1,0 +1,14 @@
+{
+  "id": "52a5714b",
+  "ts": "2026-10-06T12:30:08+00:00",
+  "text": "preview_snapshot and preview_click fail with 'Preview automation ... failed on client' on the Oracle IDCS sign-in page; evaluate and type still work",
+  "tags": [
+    "t3-preview",
+    "tools"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "447a9c01",
+  "where": "mcp__t3-code__preview_snapshot",
+  "branch": ""
+}
