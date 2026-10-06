@@ -25,6 +25,10 @@ Run the vanilla Minecraft server on an Oracle Cloud Always Free VM at full capac
 - `instance launch` returned 429 TooManyRequests twice within 20 min of signup. `launch.sh` retried every 60 s; `provision.sh` replaced it.
 - After the 429s stopped, `instance launch` returns `InternalError: Out of host capacity.` for A1 4/24 in Stockholm (first at 14:38 local).
 - OCI CLI retries 429 internally with backoff, so one launch call can take minutes.
+- OCI CLI 3.94.1 has no `--wait-for-state` on `compute instance get`. It exits 2 with "No such option". `provision.sh` hid that error and failed at once after the A1 launch at 17:41. `provision.sh` now polls `lifecycle-state`. `public-ip update` and `instance action` accept `--wait-for-state`.
+- `~/.ssh/known_hosts` on the Mac held a hashed `mc-relay` key for 82.70.43.201. After the IP move, `StrictHostKeyChecking=accept-new` refused the A1 VM, and `provision.sh` failed at the cloud-init step at 23:26. Hashed lines start with `|1|`, so `grep` for the IP misses them. Use `ssh-keygen -F <ip>` to find them and `ssh-keygen -R <ip>` to remove them.
+- The A1 VM launches with `--assign-public-ip false`, so it has no internet until the reserved IP is attached. Cloud-init at first boot failed on all `apt` sources and on the `server.jar` download. Fix: attach the IP, then run `sudo cloud-init clean --logs --reboot`. The clean run makes new SSH host keys, so run `ssh-keygen -R <ip>` again.
+- The A1 VM launched at 4 OCPU / 24 GB on 2026-10-06 17:41 local, in round 2 after the move to `~/Developer/minecraft-server`.
 - DNS via codex: needs `--skip-git-repo-check` outside a git repo; `gpt-6-sol` is rejected for a ChatGPT account, use `gpt-6-luna`; Computer Use then fails with "Computer Use was not approved to use Arc" even with `--approve-for-me`.
 - Quota policy `always-free-only` (tenancy): zero compute-core and compute-memory, A1 4 cores / 24 GB, block storage 200 GB. Verified: A1 available 4, E5 available 0.
 - CLI profile `API` uses `~/.oci/minecraft_api_key.pem`. A new API key needs about 2 min before it authenticates.
@@ -40,7 +44,9 @@ Run the vanilla Minecraft server on an Oracle Cloud Always Free VM at full capac
 - Relay (2026-10-06 16:20): free VM.Standard.E2.1.Micro `mc-relay` (id `RELAY` in oci-ids.env) holds 82.70.43.201. NTNU tmux session `relay` runs `ssh -N -R 0.0.0.0:25565:localhost:25565 relay@82.70.43.201` with key `~/.ssh/mc_relay` in a reconnect loop. Ping to mc.ola-vassbotn.no works.
 - Quota name `vm-standard-e2-1-micro-count` is not valid in `compute-core`; setting `standard-e2-micro-core-count` to 1 is enough, and the instance count then shows 1 available.
 - Parallel launch calls from two loops cause 429 TooManyRequests.
-- After provision.sh DONE: kill NTNU tmux `relay`, terminate `mc-relay` with its boot volume.
+- 2026-10-06 23:29: `provision.sh` logged DONE at 4 OCPU / 24 GB. The server runs on the A1 VM `minecraft` in `/opt/minecraft`, systemd unit `minecraft`. The NTNU server is stopped; `~/minecraft` on NTNU stays as a backup. At 23:32 the NTNU tmux `relay` was stopped and `mc-relay` was terminated with its boot volume.
+- OCI CLI writes usage errors to stdout, not stderr, and exits 2. `compute instance terminate --wait-for-state` takes work request states (`SUCCEEDED`), not `TERMINATED`.
+- The A1 VM has the 25565 ACCEPT rule twice in `INPUT`, from the two cloud-init runs. It does no harm.
 - User approved Pay As You Go upgrade 2026-10-06 ~17:00. Budget `zero-cost` (amount 1, monthly) with ACTUAL and FORECAST alerts at 1% to ola@vassbotn.com. CLI path: `oci budgets budget budget create` / `oci budgets budget alert-rule create`.
 - Upgrade page `https://cloud.oracle.com/invoices-and-orders/upgrade-and-payment?region=eu-stockholm-1` renders inside a same-origin iframe. It shows Plan type Free Tier, Account type Promo, and no payment method; a card must be added before "Upgrade your account". The user must enter the card.
 - The IDCS session in the T3 preview tab survives; a later console login only asks for the TOTP.
