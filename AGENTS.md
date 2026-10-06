@@ -4,20 +4,23 @@ This repository holds the setup for a vanilla Minecraft 26.3 server. Read `.note
 
 ## Current state
 
-- A free Oracle VM `mc-relay` (VM.Standard.E2.1.Micro) holds the reserved IP 82.70.43.201. The A record `mc.ola-vassbotn.no` points to it.
-- `provision.sh` runs on the Mac in the local tmux session `mc-provision`. It logs to `.notes/provision.log`. It retries an Always Free A1 VM, moves the IP and the world to it, starts the server, and resizes the VM to 4 OCPU / 24 GB.
+- The server runs on the Always Free A1 VM `minecraft` (VM.Standard.A1.Flex, 4 OCPU / 24 GB, Ubuntu 26.04) in `/opt/minecraft`, systemd unit `minecraft`.
+- The VM holds the reserved IP 82.70.43.201. The A record `mc.ola-vassbotn.no` points to it.
+- `mc-relay` is terminated. `cloud-init-relay.yaml` stays as a fallback.
 
 ## Rules
 
 - Keep the cost at zero. Do not create resources outside the Oracle Always Free limits. The quota policy `always-free-only` and the budget `zero-cost` are the guardrails. Do not loosen them.
 - Use the OCI CLI profile `API` (`OCI_CLI_PROFILE=API`).
+- Use `ssh ubuntu@82.70.43.201` for the A1 VM.
+- Send console commands with `ssh ubuntu@82.70.43.201 'sudo mc "<command>"'`. Read the output with `sudo journalctl -u minecraft -n 20`.
 - Add each new fact that cost time to `.notes/oracle-minecraft.md`.
 
 ## Files
 
 - `provision.sh`: launch, migration and resize loop for the A1 VM.
 - `cloud-init.yaml`: setup for the A1 VM. Java 25, systemd unit `minecraft`, firewall rule for 25565.
-- `cloud-init-relay.yaml`: setup for `mc-relay`.
+- `cloud-init-relay.yaml`: setup for the terminated `mc-relay`.
 - `ping.py`: Minecraft status ping. Run `python3 -I ping.py <host> 25565`.
 - `totp.py`: prints the current Oracle MFA code from a seed on stdin.
 - `server-icon.svg`, `server-icon.png`: the server icon.
