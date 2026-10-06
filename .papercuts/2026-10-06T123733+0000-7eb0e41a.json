@@ -1,0 +1,14 @@
+{
+  "id": "7eb0e41a",
+  "ts": "2026-10-06T12:37:33+00:00",
+  "text": "add-subdomain skill's codex exec command fails outside a git repo: 'Not inside a trusted directory and --skip-git-repo-check was not specified'",
+  "tags": [
+    "codex",
+    "skills"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "447a9c01",
+  "where": "/Users/olavassbotn/.claude/skills/add-subdomain/SKILL.md",
+  "branch": ""
+}

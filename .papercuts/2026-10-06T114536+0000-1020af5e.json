@@ -1,0 +1,14 @@
+{
+  "id": "1020af5e",
+  "ts": "2026-10-06T11:45:36+00:00",
+  "text": "ssh config for login.stud.ntnu.no lacks IdentityFile ~/.ssh/gitntntnu, so BatchMode ssh fails until -i is passed",
+  "tags": [
+    "config",
+    "ssh"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "447a9c01",
+  "where": "/Users/olavassbotn/.ssh/config",
+  "branch": ""
+}
