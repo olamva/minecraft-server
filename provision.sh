@@ -8,8 +8,8 @@ VM=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=1
 log() { echo "$(date '+%F %T') $*"; }
 fail() { log "FAILED: $*"; exit 1; }
 
-ocpus() { oci compute instance get --instance-id "$INSTANCE" --query 'data."shape-config".ocpus' --raw-output 2> /dev/null | cut -d. -f1; }
-state() { oci compute instance get --instance-id "$INSTANCE" --query 'data."lifecycle-state"' --raw-output 2> /dev/null; }
+ocpus() { oci compute instance get --instance-id "$INSTANCE" --query 'data."shape-config".ocpus' --raw-output | cut -d. -f1; }
+state() { oci compute instance get --instance-id "$INSTANCE" --query 'data."lifecycle-state"' --raw-output; }
 wait_state() { for _ in $(seq 1 80); do [[ $(state) =~ ^($1)$ ]] && return 0; sleep 15; done; return 1; }
 
 if [ -z "${INSTANCE:-}" ]; then
@@ -44,9 +44,9 @@ if [ -z "${INSTANCE:-}" ]; then
 fi
 
 wait_state RUNNING || fail "instance not RUNNING"
-VNIC=$(oci compute instance list-vnics --instance-id "$INSTANCE" --query 'data[0].id' --raw-output 2>/dev/null)
-PRIV=$(oci network private-ip list --vnic-id "$VNIC" --query 'data[0].id' --raw-output 2>/dev/null)
-oci network public-ip update --public-ip-id "$PUBIP_ID" --private-ip-id "$PRIV" --wait-for-state ASSIGNED > /dev/null 2>&1 || fail "public IP attach"
+VNIC=$(oci compute instance list-vnics --instance-id "$INSTANCE" --query 'data[0].id' --raw-output)
+PRIV=$(oci network private-ip list --vnic-id "$VNIC" --query 'data[0].id' --raw-output)
+oci network public-ip update --public-ip-id "$PUBIP_ID" --private-ip-id "$PRIV" --wait-for-state ASSIGNED > /dev/null || fail "public IP attach"
 log "IP attached"
 
 for _ in $(seq 1 60); do "${VM[@]}" true 2> /dev/null && break; sleep 15; done
@@ -71,7 +71,7 @@ while [ "$(ocpus)" != 4 ]; do
   wait_state "RUNNING|STOPPED"
   if [ "$(state)" = STOPPED ]; then
     log "instance STOPPED after resize try $r, starting it"
-    oci compute instance action --instance-id "$INSTANCE" --action START --wait-for-state RUNNING --max-wait-seconds 1200 > /dev/null 2>&1 || fail "restart after resize"
+    oci compute instance action --instance-id "$INSTANCE" --action START --wait-for-state RUNNING --max-wait-seconds 1200 > /dev/null || fail "restart after resize"
   fi
 done
 log "RESIZED to 4 OCPU / 24 GB"
