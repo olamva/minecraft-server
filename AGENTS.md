@@ -33,8 +33,8 @@ This repository holds the setup for a vanilla Minecraft 26.3 server. Read `.note
 
 ## Git remote
 
-The remote is a bare repository on the NTNU host. Clone it with:
+The remote is the private GitHub repository `olamva/minecraft-server`. Clone it with:
 
 ```bash
-GIT_SSH_COMMAND="ssh -i ~/.ssh/gitntntnu" git clone olamva@login.stud.ntnu.no:git/minecraft-server.git
+git clone git@github.com:olamva/minecraft-server.git
 ```
