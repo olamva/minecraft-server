@@ -1,0 +1,14 @@
+{
+  "id": "fdc6a0a4",
+  "ts": "2026-10-08T10:58:07+00:00",
+  "text": "OCI CLI security-list get prints kebab-case keys but update --ingress-security-rules needs camelCase, so the get output cannot be round-tripped into update",
+  "tags": [
+    "cli",
+    "oci"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "7a494394",
+  "where": "oci network security-list update",
+  "branch": "t3/minecraft-server-web-display"
+}
