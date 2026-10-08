@@ -30,6 +30,8 @@ This repository holds the setup for a vanilla Minecraft 26.3 server. Read `.note
 
 ## Git remote
 
+The remote is the private GitHub repository `olamva/minecraft-server`. Clone it with:
 
 ```bash
+git clone git@github.com:olamva/minecraft-server.git
 ```
