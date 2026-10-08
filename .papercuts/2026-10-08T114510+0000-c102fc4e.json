@@ -1,0 +1,14 @@
+{
+  "id": "c102fc4e",
+  "ts": "2026-10-08T11:45:10+00:00",
+  "text": "preview_snapshot times out (15 s) twice after preview_resize to the iphone-12-pro preset on a WebGL page",
+  "tags": [
+    "preview",
+    "tools"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "25193858",
+  "where": "mcp__t3-code__preview_snapshot",
+  "branch": "t3/minecraft-server-web-display"
+}
