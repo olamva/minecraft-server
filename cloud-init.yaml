@@ -3,6 +3,7 @@ package_update: true
 packages:
   - openjdk-25-jre-headless
   - iptables-persistent
+  - caddy
 users:
   - default
   - name: minecraft
@@ -44,13 +45,385 @@ write_files:
     content: |
       #!/bin/sh
       echo "$*" > /run/minecraft.stdin
+  - path: /etc/systemd/system/bluemap.service
+    content: |
+      [Service]
+      User=minecraft
+      WorkingDirectory=/opt/bluemap
+      ExecStartPre=-/usr/bin/python3 -I /usr/local/bin/bluemap-start-pos
+      ExecStart=/usr/bin/java -Xmx2g -jar bluemap-cli.jar -r -u -w
+      Nice=19
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /usr/local/bin/bluemap-start-pos
+    content: |
+      import glob, re, statistics, zlib
+      inhabited = b"\x04\x00\x0dInhabitedTime"
+      full = b"\x08\x00\x06Status\x00\x0eminecraft:full"
+      for conf in glob.glob("/opt/bluemap/config/maps/*.conf"):
+          text = open(conf).read()
+          world = re.search(r'^world: "(.+)"', text, re.M)[1]
+          namespace, dimension = re.search(r'^dimension: "(.+):(.+)"', text, re.M).groups()
+          explored, generated = set(), set()
+          for region in glob.glob(f"{world}/dimensions/{namespace}/{dimension}/region/r.*.mca"):
+              rx, rz = map(int, re.findall(r"r\.(-?\d+)\.(-?\d+)\.mca$", region)[0])
+              data = open(region, "rb").read()
+              for i in range(1024):
+                  offset = int.from_bytes(data[i * 4:i * 4 + 3]) * 4096
+                  if not offset or data[offset + 4] != 2:
+                      continue
+                  nbt = zlib.decompress(data[offset + 5:offset + 4 + int.from_bytes(data[offset:offset + 4])])
+                  chunk = (rx * 32 + i % 32, rz * 32 + i // 32)
+                  if full in nbt:
+                      generated.add(chunk)
+                  at = nbt.find(inhabited) + len(inhabited)
+                  if at >= len(inhabited) and int.from_bytes(nbt[at:at + 8], signed=True) > 0:
+                      explored.add(chunk)
+          x = z = 0
+          if explored and not generated & {(0, 0), (-1, 0), (0, -1), (-1, -1)}:
+              x, z = (statistics.median_low(axis) * 16 + 8 for axis in zip(*explored))
+          open(conf, "w").write(re.sub(r"^start-pos:.*\n", "", text, flags=re.M) + f"start-pos: {{ x: {x}, z: {z} }}\n")
+          print(conf, x, z, len(explored), len(generated))
+  - path: /etc/systemd/system/mcstatus.service
+    content: |
+      [Service]
+      User=minecraft
+      ExecStart=/bin/sh -c 'while :; do python3 -I /usr/local/bin/ping.py localhost 25565 > /opt/bluemap/web/status.json; sleep 10; done'
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/caddy/Caddyfile
+    defer: true
+    content: |
+      mc.ola-vassbotn.no {
+      	reverse_proxy 127.0.0.1:8100
+      }
+  - path: /opt/bluemap/config/core.conf
+    content: |
+      accept-download: true
+      data: "data"
+      render-thread-count: 3
+  - path: /opt/bluemap/config/webserver.conf
+    content: |
+      webroot: "web"
+      ip: "127.0.0.1"
+  - path: /opt/bluemap/config/webapp.conf
+    content: |
+      webroot: "web"
+      hires-slider-default: 200
+      scripts: ["status.js"]
+      styles: ["status.css"]
+  - path: /opt/bluemap/config/storages/file.conf
+    content: |
+      storage-type: file
+      root: "web/maps"
+  - path: /opt/bluemap/config/maps/overworld.conf
+    content: |
+      world: "/opt/minecraft/world"
+      dimension: "minecraft:overworld"
+      name: "Overworld"
+      min-inhabited-time: 1
+      remove-caves-below-y: 10000
+      cave-detection-ocean-floor: -5
+  - path: /opt/bluemap/config/maps/nether.conf
+    content: |
+      world: "/opt/minecraft/world"
+      dimension: "minecraft:the_nether"
+      name: "Nether"
+      sorting: 100
+      sky-color: "#290000"
+      void-color: "#150000"
+      ambient-light: 0.6
+      min-inhabited-time: 1
+      remove-caves-below-y: -10000
+      render-mask: [{}, {subtract: true, min-y: 90, max-y: 127}]
+  - path: /opt/bluemap/config/maps/end.conf
+    content: |
+      world: "/opt/minecraft/world"
+      dimension: "minecraft:the_end"
+      name: "End"
+      sorting: 200
+      sky-color: "#080010"
+      void-color: "#080010"
+      ambient-light: 0.6
+      min-inhabited-time: 1
+      remove-caves-below-y: -10000
+  - path: /opt/bluemap/web/status.js
+    content: |
+      document.querySelector("#app").__vue_app__.config.globalProperties.$i18n.locale = "en";
+
+      const panel = document.createElement("div");
+      const settings = document.createElement("div");
+      const card = document.createElement("div");
+      const nav = document.createElement("nav");
+      const gear = document.createElement("button");
+      const who = document.createElement("p");
+      const countdown = document.createElement("small");
+      panel.id = "mc-panel";
+      settings.id = "mc-settings";
+      settings.hidden = true;
+      gear.textContent = "⚙︎";
+      gear.title = "Settings";
+      gear.onclick = () => gear.classList.toggle("active", !(settings.hidden = !settings.hidden));
+      card.append(nav, who, countdown);
+      panel.append(settings, card);
+      document.querySelector(".control-bar").parentElement.prepend(panel);
+
+      const slider = (name, key, min, max, step) => {
+        const label = document.createElement("label");
+        const value = document.createElement("span");
+        const input = document.createElement("input");
+        Object.assign(input, { type: "range", min, max, step, value: bluemap.mapViewer.data[key] });
+        value.textContent = input.value;
+        input.oninput = () => {
+          value.textContent = input.value;
+          bluemap.mapViewer.data[key] = +input.value;
+          bluemap.mapViewer.updateLoadedMapArea();
+        };
+        input.onchange = () => bluemap.saveUserSettings();
+        label.append(name, value, input);
+        return label;
+      };
+      const full = document.createElement("button");
+      full.textContent = "Fullscreen";
+      full.hidden = !document.fullscreenEnabled;
+      full.onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.body.requestFullscreen();
+      document.addEventListener("fullscreenchange", () => full.textContent = document.fullscreenElement ? "Exit fullscreen" : "Fullscreen");
+      const limits = bluemap.settings;
+      settings.append(
+        slider("Hi-res", "loadedHiresViewDistance", limits.hiresSliderMin, limits.hiresSliderMax, 10),
+        slider("Low-res", "loadedLowresViewDistance", limits.lowresSliderMin, limits.lowresSliderMax, 100),
+        full,
+      );
+
+      const explored = id => Promise.all(["x0/z0", "x0/z-1", "x-1/z0", "x-1/z-1"].map(tile => fetch(`maps/${id}/tiles/3/${tile}.png`).then(r => r.status === 200))).then(found => found.includes(true));
+      const buttons = bluemap.maps.map(map => {
+        const button = document.createElement("button");
+        button.textContent = map.data.name;
+        button.onclick = () => bluemap.switchMap(map.data.id);
+        explored(map.data.id).then(found => button.disabled = !found);
+        nav.append(button);
+        return [map.data.id, button];
+      });
+      nav.append(gear);
+      const mark = () => buttons.forEach(([id, button]) => button.classList.toggle("active", id === bluemap.mapViewer.map?.data.id));
+
+      const edge = "if (distance < 800.0 && color.a == 0.0) discard;";
+      const cut = edge + `
+        vec2 quad = vec2(tileSize.x + 1.0) / ceil(50.0 / lod);
+        vec2 corner = floor(vPosition.xz / quad) * quad;
+        if (texture(textureImage, posToColorUV(corner)).a * texture(textureImage, posToColorUV(corner + vec2(quad.x, 0.0))).a * texture(textureImage, posToColorUV(corner + vec2(0.0, quad.y))).a * texture(textureImage, posToColorUV(corner + quad)).a == 0.0) discard;`;
+      const cutWalls = () => bluemap.mapViewer.map.lowresTileManager.forEach(manager => {
+        const shaders = [manager.tileLoader];
+        manager.scene.traverse(o => o.material?.fragmentShader && shaders.push(o.material));
+        shaders.filter(shader => !shader.fragmentShader.includes("vec2 corner")).forEach(shader => {
+          shader.fragmentShader = shader.fragmentShader.replace(edge, cut);
+          shader.needsUpdate = true;
+        });
+      });
+
+      const update = () => { mark(); cutWalls(); };
+      bluemap.events.addEventListener("bluemapMapChanged", update);
+      update();
+
+      const controls = bluemap.mapControls;
+      const ground = point => {
+        const camera = bluemap.mapViewer.camera;
+        const rect = bluemap.mapViewer.renderer.domElement.getBoundingClientRect();
+        const [near, far] = [-1, 1].map(z => camera.position.clone().set((point.x - rect.left) / rect.width * 2 - 1, (rect.top - point.y) / rect.height * 2 + 1, z).unproject(camera));
+        const t = (controls.manager.lastPosition.y - near.y) / (far.y - near.y);
+        return t > 0 && Number.isFinite(t) ? near.lerp(far, t) : null;
+      };
+      const towardPoint = (zoom, point) => {
+        const step = zoom.update.bind(zoom);
+        zoom.update = (delta, map) => {
+          const manager = controls.manager;
+          const before = manager.distance;
+          const target = point() && ground(point());
+          step(delta, map);
+          const scale = Math.min(Math.max(manager.distance, controls.minDistance), controls.maxDistance) / before;
+          if (!target || scale === 1) return;
+          manager.position.x = target.x + scale * (manager.position.x - target.x);
+          manager.position.z = target.z + scale * (manager.position.z - target.z);
+        };
+      };
+      let cursor = null;
+      let pinch = null;
+      controls.mouseZoom.target.addEventListener("wheel", e => cursor = { x: e.clientX, y: e.clientY });
+      addEventListener("pointerdown", () => cursor = null, true);
+      controls.hammer.on("zoomstart zoommove", e => pinch = e.center);
+      towardPoint(controls.mouseZoom, () => cursor);
+      towardPoint(controls.touchZoom, () => pinch);
+
+      let checked = 0;
+      let next = 0;
+      const poll = async () => {
+        const response = await fetch("status.json", { cache: "no-store" }).catch(() => null);
+        checked = Date.parse(response?.headers.get("Last-Modified")) || checked;
+        const status = await response?.json().catch(() => null);
+        const names = status?.players.sample?.map(p => p.name) ?? [];
+        who.className = status ? "online" : "offline";
+        who.textContent = status ? `${status.players.online}/${status.players.max} online${names.length ? ": " + names.join(", ") : ""}` : "Server offline";
+        const delay = Math.min(10000, Math.max(1000, checked + 11000 - Date.now()));
+        next = Date.now() + delay;
+        setTimeout(poll, delay);
+      };
+      const tick = () => countdown.textContent = next ? `Next check in ${Math.max(0, Math.ceil((next - Date.now()) / 1000))} s` : "";
+      poll();
+      setInterval(tick, 1000);
+  - path: /opt/bluemap/web/status.css
+    content: |
+      :root, :root .theme-light, :root .theme-dark, :root .theme-contrast {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-weight: 400;
+        --theme-bg: rgba(20, 20, 24, .75);
+        --theme-bg-hover: rgba(48, 48, 56, .85);
+        --theme-bg-light: rgba(82, 82, 92, .9);
+        --theme-fg: #f4f4f5;
+        --theme-fg-light: #b4b4bc;
+        --theme-switch-button-on: #3b82f6;
+        --theme-stars-day: #fff;
+        --theme-moon-day: #ff0;
+        --theme-stars-night: #444;
+        --theme-moon-night: #000;
+      }
+      #app input {
+        font: inherit;
+      }
+      #app .control-bar {
+        gap: .375em;
+        filter: none;
+      }
+      #app .control-bar > :not(.space), #zoom-buttons, #mc-panel > div, #map-container .bm-marker-popup {
+        border: none;
+        border-radius: .625em;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      #app .control-bar > :not(.space), #zoom-buttons, #mc-panel > div {
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .5);
+      }
+      #app .control-bar > .space:not(.greedy), #app .control-bar > :has(~ .space.greedy) {
+        display: none;
+      }
+      #zoom-buttons {
+        filter: none;
+      }
+      #zoom-buttons > * + * {
+        border-top: solid 1px var(--theme-bg-light);
+      }
+      #mc-panel {
+        position: fixed;
+        left: .5em;
+        bottom: .5em;
+        display: flex;
+        flex-direction: column;
+        gap: .375em;
+        line-height: 1.25;
+        color: var(--theme-fg);
+      }
+      #mc-panel > div {
+        pointer-events: auto;
+        padding: .25em;
+        background: var(--theme-bg);
+      }
+      #mc-panel nav {
+        display: flex;
+        gap: .25em;
+      }
+      #mc-panel button {
+        padding: .375em .75em;
+        border: 0;
+        border-radius: .5em;
+        font: inherit;
+        color: inherit;
+        background: none;
+        cursor: pointer;
+      }
+      #mc-panel button:hover {
+        background: var(--theme-bg-hover);
+      }
+      #mc-panel button.active {
+        background: var(--theme-bg-light);
+      }
+      #mc-panel button:disabled {
+        opacity: .4;
+        background: none;
+        cursor: default;
+      }
+      #mc-panel nav button:last-child {
+        margin-left: auto;
+        padding: .375em .5em;
+      }
+      #mc-panel p {
+        margin: 0;
+        padding: .25em .5em 0;
+      }
+      #mc-panel p::before {
+        content: "●";
+        margin-right: .4em;
+        color: #22c55e;
+      }
+      #mc-panel p.offline::before {
+        color: #ef4444;
+      }
+      #mc-panel small {
+        display: block;
+        padding: 0 .5em .25em;
+        font-size: .75em;
+        color: var(--theme-fg-light);
+      }
+      #mc-settings label {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        padding: .25em .5em;
+      }
+      #mc-settings label span {
+        color: var(--theme-fg-light);
+      }
+      #mc-settings input {
+        grid-column: span 2;
+        width: 100%;
+        margin: .375em 0;
+        accent-color: var(--theme-fg);
+      }
+      #mc-settings button {
+        width: 100%;
+        text-align: left;
+      }
+      @media (max-width: 575.98px) {
+        #app .control-bar {
+          margin: .5em;
+          width: calc(100% - 1em);
+          background: none;
+        }
+        #app .control-bar > .thin-hide {
+          display: block;
+        }
+        #app .control-bar > .controls-switch {
+          display: flex;
+        }
+        #app .control-bar > .pos-input, #zoom-buttons {
+          display: none;
+        }
+        #mc-panel {
+          font-size: .75em;
+        }
+      }
 runcmd:
   - install -d -o minecraft -g minecraft /opt/minecraft
   - curl -sSfo /opt/minecraft/server.jar https://piston-data.mojang.com/v1/objects/33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c/server.jar
   - cd /opt/minecraft && echo "33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c  server.jar" | sha1sum -c
   - echo eula=true > /opt/minecraft/eula.txt
-  - chown -R minecraft:minecraft /opt/minecraft
-  - iptables -I INPUT -p tcp --dport 25565 -m state --state NEW -j ACCEPT
+  - curl -sSfLo /opt/bluemap/bluemap-cli.jar https://github.com/BlueMap-Minecraft/BlueMap/releases/download/v5.28/bluemap-5.28-cli.jar
+  - cd /opt/bluemap && echo "c6868465f8f972a64a3f2acc32112cab8560339045747f81359bdea6959f7ac2  bluemap-cli.jar" | sha256sum -c
+  - chown -R minecraft:minecraft /opt/minecraft /opt/bluemap
+  - iptables -I INPUT -p tcp -m multiport --dports 25565,80,443 -m state --state NEW -j ACCEPT
   - netfilter-persistent save
   - systemctl daemon-reload
-  - systemctl enable minecraft.service
+  - systemctl enable minecraft.service bluemap.service mcstatus.service
+  - systemctl restart caddy
