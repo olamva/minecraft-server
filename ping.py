@@ -18,4 +18,4 @@ read_varint(s); read_varint(s); slen = read_varint(s)
 data = b""
 while len(data) < slen: data += s.recv(slen - len(data))
 d = json.loads(data)
-print(d["version"], d["players"], d.get("description"))
+d.pop("favicon", None); print(json.dumps(d))
