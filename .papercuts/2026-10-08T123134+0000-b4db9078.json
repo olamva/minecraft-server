@@ -1,0 +1,13 @@
+{
+  "id": "b4db9078",
+  "ts": "2026-10-08T12:31:34+00:00",
+  "text": "Escalated verification shell could not find curl in PATH",
+  "tags": [
+    "tools"
+  ],
+  "who": "agent",
+  "model": "gpt-6-luna",
+  "session": "",
+  "where": "exec_command",
+  "branch": "t3/bluemap-player-list-title"
+}
