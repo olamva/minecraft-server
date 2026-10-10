@@ -1,0 +1,14 @@
+{
+  "id": "c910ccd9",
+  "ts": "2026-10-08T12:28:20+00:00",
+  "text": "Sandbox DNS blocked raw.githubusercontent.com while fetching the font license",
+  "tags": [
+    "network",
+    "tools"
+  ],
+  "who": "agent",
+  "model": "gpt-6-luna",
+  "session": "",
+  "where": "https://raw.githubusercontent.com/macimas-fonts/macsMinecraft/main/OFL.txt",
+  "branch": "t3/bluemap-player-list-title"
+}
