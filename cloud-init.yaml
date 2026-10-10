@@ -129,7 +129,15 @@ write_files:
     defer: true
     content: |
       mc.ola-vassbotn.no {
-      	reverse_proxy 127.0.0.1:8100
+        @font path /fonts/*.woff2
+        handle @font {
+          reverse_proxy 127.0.0.1:8100 {
+            header_down Content-Type font/woff2
+          }
+        }
+        handle {
+          reverse_proxy 127.0.0.1:8100
+        }
       }
   - path: /opt/bluemap/config/core.conf
     content: |
@@ -181,6 +189,59 @@ write_files:
       ambient-light: 0.6
       min-inhabited-time: 1
       remove-caves-below-y: -10000
+  - path: /opt/bluemap/web/server-icon.png
+    encoding: b64
+    content: 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
+  - path: /opt/bluemap/web/fonts/LICENSE.txt
+    content: |
+      Copyright (c) 2024, macimas (https://macimas.github.io)
+
+      This Font Software is licensed under the SIL Open Font License, Version 1.1.
+      This license is copied below, and is also available with a FAQ at:
+      https://openfontlicense.org
+
+
+      -———————————————————————
+
+      SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+      -———————————————————————
+
+
+
+      PREAMBLE
+      The goals of the Open Font License (OFL) are to stimulate worldwide development of collaborative font projects, to support the font creation efforts of academic and linguistic communities, and to provide a free and open framework in which fonts may be shared and improved in partnership with others.
+
+      The OFL allows the licensed fonts to be used, studied, modified and redistributed freely as long as they are not sold by themselves. The fonts, including any derivative works, can be bundled, embedded, redistributed and/or sold with any software provided that any reserved names are not used by derivative works. The fonts and derivatives, however, cannot be released under any other type of license. The requirement for fonts to remain under this license does not apply to any document created using the fonts or their derivatives.
+
+      DEFINITIONS
+      “Font Software” refers to the set of files released by the Copyright Holder(s) under this license and clearly marked as such. This may include source files, build scripts and documentation.
+
+      “Reserved Font Name” refers to any names specified as such after the copyright statement(s).
+
+      “Original Version” refers to the collection of Font Software components as distributed by the Copyright Holder(s).
+
+      “Modified Version” refers to any derivative made by adding to, deleting, or substituting – in part or in whole – any of the components of the Original Version, by changing formats or by porting the Font Software to a new environment.
+
+      “Author” refers to any designer, engineer, programmer, technical writer or other person who contributed to the Font Software.
+
+      PERMISSION & CONDITIONS
+      Permission is hereby granted, free of charge, to any person obtaining a copy of the Font Software, to use, study, copy, merge, embed, modify, redistribute, and sell modified and unmodified copies of the Font Software, subject to the following conditions:
+
+      Neither the Font Software nor any of its individual components, in Original or Modified Versions, may be sold by itself.
+
+      Original or Modified Versions of the Font Software may be bundled, redistributed and/or sold with any software, provided that each copy contains the above copyright notice and this license. These can be included either as stand-alone text files, human-readable headers or in the appropriate machine-readable metadata fields within text or binary files as long as those fields can be easily viewed by the user.
+
+      No Modified Version of the Font Software may use the Reserved Font Name(s) unless explicit written permission is granted by the corresponding Copyright Holder. This restriction only applies to the primary font name as presented to the users.
+
+      The name(s) of the Copyright Holder(s) or the Author(s) of the Font Software shall not be used to promote, endorse or advertise any Modified Version, except to acknowledge the contribution(s) of the Copyright Holder(s) and the Author(s) or with their explicit written permission.
+
+      The Font Software, modified or unmodified, in part or in whole, must be distributed entirely under this license, and must not be distributed under any other license. The requirement for fonts to remain under this license does not apply to any document created using the Font Software.
+
+      TERMINATION
+      This license becomes null and void if any of the above conditions are not met.
+
+      DISCLAIMER
+      THE FONT SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE FONT SOFTWARE.
   - path: /opt/bluemap/web/status.js
     content: |
       document.querySelector("#app").__vue_app__.config.globalProperties.$i18n.locale = "en";
@@ -191,6 +252,8 @@ write_files:
       const nav = document.createElement("nav");
       const gear = document.createElement("button");
       const who = document.createElement("p");
+      const players = document.createElement("div");
+      players.id = "mc-players";
       const countdown = document.createElement("small");
       panel.id = "mc-panel";
       settings.id = "mc-settings";
@@ -198,7 +261,15 @@ write_files:
       gear.textContent = "⚙︎";
       gear.title = "Settings";
       gear.onclick = () => gear.classList.toggle("active", !(settings.hidden = !settings.hidden));
-      card.append(nav, who, countdown);
+      card.append(nav, who, players, countdown);
+      document.title = "Minecraft World Map | mc.ola-vassbotn.no";
+      const favicon = document.querySelector("link[rel~=icon]") || document.createElement("link");
+      favicon.rel = "icon";
+      favicon.href = "/server-icon.png";
+      document.head.append(favicon);
+      new MutationObserver(() => {
+        if (document.title !== "Minecraft World Map | mc.ola-vassbotn.no") document.title = "Minecraft World Map | mc.ola-vassbotn.no";
+      }).observe(document.querySelector("title"), { childList: true });
       panel.append(settings, card);
       document.querySelector(".control-bar").parentElement.prepend(panel);
 
@@ -255,7 +326,7 @@ write_files:
         });
       });
 
-      const update = () => { mark(); cutWalls(); };
+      const update = () => { mark(); cutWalls(); document.title = "Minecraft World Map | mc.ola-vassbotn.no"; };
       bluemap.events.addEventListener("bluemapMapChanged", update);
       update();
 
@@ -294,9 +365,21 @@ write_files:
         const response = await fetch("status.json", { cache: "no-store" }).catch(() => null);
         checked = Date.parse(response?.headers.get("Last-Modified")) || checked;
         const status = await response?.json().catch(() => null);
-        const names = status?.players.sample?.map(p => p.name) ?? [];
+        const sample = status?.players.sample ?? [];
         who.className = status ? "online" : "offline";
-        who.textContent = status ? `${status.players.online}/${status.players.max} online${names.length ? ": " + names.join(", ") : ""}` : "Server offline";
+        who.textContent = status ? `${status.players.online}/${status.players.max} online` : "Server offline";
+        players.replaceChildren(...sample.map(player => {
+          const row = document.createElement("div");
+          const head = document.createElement("img");
+          const name = document.createElement("span");
+          head.src = `https://mc-heads.net/avatar/${encodeURIComponent(player.id)}/24`;
+          head.alt = "";
+          head.width = 24;
+          head.height = 24;
+          name.textContent = player.name;
+          row.append(head, name);
+          return row;
+        }));
         const delay = Math.min(10000, Math.max(1000, checked + 11000 - Date.now()));
         next = Date.now() + delay;
         setTimeout(poll, delay);
@@ -306,6 +389,16 @@ write_files:
       setInterval(tick, 1000);
   - path: /opt/bluemap/web/status.css
     content: |
+      @font-face {
+        font-family: Minecraft;
+        src: url("/fonts/minecraft-regular.woff2") format("woff2");
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: Minecraft;
+        src: url("/fonts/minecraft-bold.woff2") format("woff2");
+        font-weight: 700;
+      }
       :root, :root .theme-light, :root .theme-dark, :root .theme-contrast {
         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         font-weight: 400;
@@ -401,6 +494,20 @@ write_files:
       #mc-panel p.offline::before {
         color: #ef4444;
       }
+      #mc-players {
+        display: grid;
+        gap: .25em;
+        padding: .25em .5em;
+        font-family: Minecraft, system-ui, sans-serif;
+      }
+      #mc-players > div {
+        display: flex;
+        align-items: center;
+        gap: .5em;
+      }
+      #mc-players img {
+        image-rendering: pixelated;
+      }
       #mc-panel small {
         display: block;
         padding: 0 .5em .25em;
@@ -451,6 +558,10 @@ runcmd:
   - echo eula=true > /opt/minecraft/eula.txt
   - curl -sSfLo /opt/bluemap/bluemap-cli.jar https://github.com/BlueMap-Minecraft/BlueMap/releases/download/v5.28/bluemap-5.28-cli.jar
   - cd /opt/bluemap && echo "c6868465f8f972a64a3f2acc32112cab8560339045747f81359bdea6959f7ac2  bluemap-cli.jar" | sha256sum -c
+  - install -d -o minecraft -g minecraft /opt/bluemap/web/fonts
+  - curl -sSfLo /tmp/minecraft-fonts.zip https://github.com/macimas-fonts/macsMinecraft/releases/download/1.03/macsMinecraft%2Bwoff2.zip
+  - echo "95a02a3cfddf2d2d21b7307899c4d8be94cc42d3d2e968e8feaf1c2ed2dd2ed6  /tmp/minecraft-fonts.zip" | sha256sum -c
+  - python3 -I -c 'import zipfile; z=zipfile.ZipFile("/tmp/minecraft-fonts.zip"); out="/opt/bluemap/web/fonts/"; open(out+"minecraft-regular.woff2","wb").write(z.read("macsMinecraft-Regular.woff2")); open(out+"minecraft-bold.woff2","wb").write(z.read("macsMinecraft-Bold.woff2"))'
   - chown -R minecraft:minecraft /opt/minecraft /opt/bluemap
   - iptables -I INPUT -p tcp -m multiport --dports 25565,80,443 -m state --state NEW -j ACCEPT
   - netfilter-persistent save
