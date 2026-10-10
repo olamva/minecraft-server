@@ -4,6 +4,7 @@ packages:
   - openjdk-25-jre-headless
   - iptables-persistent
   - caddy
+  - rsync
 users:
   - default
   - name: minecraft
@@ -95,6 +96,35 @@ write_files:
 
       [Install]
       WantedBy=multi-user.target
+  - path: /usr/local/bin/mc-backup
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      set -e
+      b=/var/backups/minecraft
+      mkdir -p -m 700 $b
+      [ -e $b/latest ] && [ -z "$(find /opt/minecraft/world/players -newer $b/latest -print -quit)" ] && exit 0
+      t=$(date +%s)
+      trap 'mc save-on' EXIT
+      mc save-off
+      mc save-all flush
+      timeout 300 sh -c "until journalctl -u minecraft --since @$t | grep -q 'Saved the game'; do sleep 1; done"
+      d=$b/$(date -u +%Y%m%dT%H%MZ)
+      rsync -a --link-dest=$b/latest /opt/minecraft/world/ $d/
+      ln -sfn $d $b/latest
+      ls -d $b/2* | head -n -48 | xargs -r rm -rf
+  - path: /etc/systemd/system/mc-backup.service
+    content: |
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/mc-backup
+  - path: /etc/systemd/system/mc-backup.timer
+    content: |
+      [Timer]
+      OnCalendar=*:0/30
+
+      [Install]
+      WantedBy=timers.target
   - path: /etc/caddy/Caddyfile
     defer: true
     content: |
@@ -425,5 +455,5 @@ runcmd:
   - iptables -I INPUT -p tcp -m multiport --dports 25565,80,443 -m state --state NEW -j ACCEPT
   - netfilter-persistent save
   - systemctl daemon-reload
-  - systemctl enable minecraft.service bluemap.service mcstatus.service
+  - systemctl enable minecraft.service bluemap.service mcstatus.service mc-backup.timer
   - systemctl restart caddy
