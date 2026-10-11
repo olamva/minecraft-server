@@ -13,6 +13,7 @@ The gamerule `players_sleeping_percentage` is 50. The world stores it in `level.
 - Lithium makes the server tick faster. Game behaviour stays vanilla.
 - The BlueMap mod replaces the BlueMap CLI. The map at https://mc.ola-vassbotn.no shows live player positions.
 - A click on a player in the panel makes the map follow that player.
+- Optional, as a second step: a 3D player model that walks. See "Optional phase: 3D player model".
 - Players keep the vanilla client. All mods are server-side only.
 
 ## Decisions
@@ -258,11 +259,114 @@ Do the steps in this sequence.
 
 The mods add no blocks or items, so the vanilla server loads the world.
 
+## Optional phase: 3D player model
+
+Do this phase only after the main change works. Do it in a separate pull request.
+
+### Goal of the phase
+
+- When the camera is near a player, the map shows a 3D Minecraft player model with the skin of the player. The model replaces the head icon. The name tag stays.
+- The body turns with `yaw`. The head tilts with `pitch`.
+- The arms and legs swing when the player moves. The swing is an estimate from the speed. It does not show what the player does.
+- When the camera is far away, the map shows the head icon again.
+
+### Facts
+
+- BlueMap sends only `position` and `rotation` (`pitch`, `yaw`, `roll`) for each player, once each second. The interval is fixed in `MapRequestHandler.java`. `PlayerMarker` moves to each new position over one second, and it also animates `marker.data.rotation`.
+- `window.BlueMap.Three` is the three.js module (0.186) of BlueMap. Use it. Do not load a second copy of three.js.
+- Each player marker is an `Object3D` at the feet of the player plus 1.8 blocks. Get the markers from `bluemap.mapViewer.markers.markerSets.get("bm-players")?.markers.values()`. When the player is in a different dimension, BlueMap sets `marker.visible = false`. This also hides the children of the marker.
+- `MapViewer` draws the markers after the terrain, with the depth buffer of the terrain. Terrain hides a mesh that is behind it. The marker scene has no lights, so use `MeshBasicMaterial`.
+- When the camera does not move, `MapViewer` draws only 20 frames each second. `bluemap.mapViewer.redraw()` gives the full frame rate for one second.
+- The Mojang profile API (`sessionserver.mojang.com`) sends no CORS headers, so the browser cannot read it. The server must get the skins.
+
+### Skins on the server
+
+Add `/usr/local/bin/mc-skins` to `write_files` in `cloud-init.yaml`. The script uses only the Python standard library. It does these steps:
+
+1. Read `/opt/bluemap/web/status.json`. Stop without an error if the file is empty or the server is offline.
+2. For each player in `players.sample`, skip the player if `/opt/bluemap/web/skins/<id>.png` is less than one day old.
+3. Get `https://sessionserver.mojang.com/session/minecraft/profile/<id without dashes>`. Decode `properties[0].value` from base64. Read `textures.SKIN.url` and `textures.SKIN.metadata.model`. The model is `slim` or missing (classic).
+4. Download the skin to `/opt/bluemap/web/skins/<id>.png`. Change `http:` to `https:` in the URL.
+5. Write the model of each player to `/opt/bluemap/web/skins/models.json` as `{"<id>": "slim" | "classic"}`.
+6. If a request fails, skip the player. Try again in the next run.
+
+Run the script from the `mcstatus` loop:
+
+```ini
+ExecStart=/bin/sh -c 'while :; do python3 -I /usr/local/bin/ping.py localhost 25565 > /opt/bluemap/web/status.json; python3 -I /usr/local/bin/mc-skins; sleep 10; done'
+```
+
+### Model in `status.js`
+
+Build the model from boxes. The units are skin pixels. Set the scale of the model group to `0.9375 / 16`, as Minecraft does, so the model is 1.875 blocks tall. Add the group to the marker at `y = -1.8`, so the feet are on the ground. The front of the model faces `+Z`, so the right side of the player is `-X`. With `yaw = 0`, the player looks south (`+Z`).
+
+| Part | Size (w × h × d) | Base UV | Overlay UV | Overlay inflate | Center (x, y) | Pivot y |
+|---|---|---|---|---|---|---|
+| Head | 8 × 8 × 8 | 0, 0 | 32, 0 | 0.5 | 0, 28 | 24 |
+| Body | 8 × 12 × 4 | 16, 16 | 16, 32 | 0.25 | 0, 18 | none |
+| Right arm | 4 × 12 × 4 | 40, 16 | 40, 32 | 0.25 | -6, 18 | 22 |
+| Left arm | 4 × 12 × 4 | 32, 48 | 48, 48 | 0.25 | 6, 18 | 22 |
+| Right leg | 4 × 12 × 4 | 0, 16 | 0, 32 | 0.25 | -2, 6 | 12 |
+| Left leg | 4 × 12 × 4 | 16, 48 | 0, 48 | 0.25 | 2, 6 | 12 |
+
+- For a `slim` model, the arms are 3 pixels wide, and the arm centers are at `x = ±5.5`.
+- Put each head, arm and leg in a group at its pivot, so it turns around the neck, the shoulder or the hip.
+- The overlay box is larger than the base box by the inflate value on each side.
+- A part with UV origin `(u, v)` and size `w × h × d` uses these skin areas. Map each face of `BoxGeometry` to its area. The face order of `BoxGeometry` is `+X, -X, +Y, -Y, +Z, -Z`.
+
+  | `BoxGeometry` face | Skin area | Origin | Size |
+  |---|---|---|---|
+  | `+X` | left side | `u + d + w, v + d` | d × h |
+  | `-X` | right side | `u, v + d` | d × h |
+  | `+Y` | top | `u + d, v` | w × d |
+  | `-Y` | bottom | `u + d + w, v` | w × d |
+  | `+Z` | front | `u + d, v + d` | w × h |
+  | `-Z` | back | `u + 2d + w, v + d` | w × h |
+
+- Load the skin with `Three.TextureLoader`. Set `magFilter` and `minFilter` to `NearestFilter`, `generateMipmaps` to `false` and `colorSpace` to `SRGBColorSpace`. Use `alphaTest: 0.5`. Use `side: DoubleSide` for the overlay.
+- Some old skins are 64 × 32 pixels. For these skins, use the right arm and right leg areas for the left arm and left leg too, and draw no overlay except on the head.
+- Load the skin texture once for each player, and keep it when the map changes. BlueMap makes new markers when the map changes.
+- If a player has no skin file, keep the head icon.
+
+### Animation in `status.js`
+
+Run a `requestAnimationFrame` loop. On each frame, for each player marker:
+
+1. If the marker has no model and the skin is loaded, build the model and add it to the marker.
+2. Set the model `rotation.y` to `-yaw` and the head `rotation.x` to `pitch`, in radians, from `marker.data.rotation`.
+3. Measure the horizontal speed from the change of `marker.position` since the last frame. Smooth the speed, because `PlayerMarker` eases each move.
+4. Advance a walk phase with the speed. Turn the legs by `sin(phase) * amplitude` and the arms by the opposite angle. Set the amplitude to approximately 0.6 radians at walking speed (4.3 blocks each second). Make it smaller at lower speed and 0 when the player stands still. Tune it in the browser.
+5. If the distance from `bluemap.mapViewer.camera.position` to the marker is less than 100 blocks, show the model and add the class `mc-model` to `marker.element`. Otherwise, hide the model and remove the class. Tune the distance in the browser.
+6. If a model is visible, call `bluemap.mapViewer.redraw()`.
+
+In `status.css`, hide `.bm-marker-player.mc-model img`.
+
+### Changes on the running VM for the phase
+
+1. Install `/usr/local/bin/mc-skins`, and make `/opt/bluemap/web/skins` for the `minecraft` user.
+2. Update `/etc/systemd/system/mcstatus.service`. Run `sudo systemctl daemon-reload` and `sudo systemctl restart mcstatus`.
+3. Install the new `status.js` and `status.css` in `/opt/bluemap/web`.
+
+### Checks for the phase
+
+- `/opt/bluemap/web/skins/` has a PNG for each online player, and `models.json` has each player.
+- The browser sends no requests to Mojang or mc-heads.net. Look at the network tab.
+- With a player online, check these items in a browser at desktop width and at phone width:
+  - Zoom in on the player. The head icon changes to the model. The name tag stays above the head.
+  - The face points where the player looks. The head tilts up and down.
+  - The arms and legs swing when the player walks. They stop when the player stands still.
+  - Terrain hides the model when the model is behind a hill or a wall.
+  - A player with a `slim` skin has 3-pixel arms.
+  - Zoom out. The model changes back to the head icon.
+  - The map stays smooth on a phone.
+
 ## Finish
 
 - Update `AGENTS.md`:
   - The server runs Fabric with Fabric API, Essential Commands (`/tpa` only), Lithium and BlueMap.
   - The BlueMap mod replaces the CLI and the `bluemap` unit.
   - Add only server-side mods. Players use the vanilla client.
-- Delete this file.
 - Make one pull request with the changes to `cloud-init.yaml` and `AGENTS.md`. Include the new `.papercuts/` reports.
+- After the main change, ask Ola if you must do the optional phase now.
+  - If yes, do the phase in a second pull request. Add `mc-skins` to the `cloud-init.yaml` line in `AGENTS.md`. Delete this file in that pull request.
+  - If no, remove all sections of this file except "Optional phase: 3D player model" in the first pull request.
