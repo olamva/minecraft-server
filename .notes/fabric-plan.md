@@ -31,6 +31,7 @@ Do not change these decisions.
 - Share The Spare has no 26.3 build. Use the 26.2 build. Its `fabric.mod.json` requires `"minecraft": "~26.2"`, so Fabric does not load it on 26.3. `config/fabric_loader_dependencies.json` replaces this range with `~26.3`. On 2026-10-11, all 36 Minecraft references in the jar resolve in the 26.3 server jar. These include the mixin target `ZombieVillager.finishConversion(ServerLevel)` and the shadow field `ZombieVillager.conversionStarter` (`UUID`). Nobody has tested the mod on 26.3. When a 26.3 build is available, use it and remove the override.
 - Share The Spare has no public source code. Its jar calls only Minecraft, Fabric API, slf4j and fastutil. It makes no network, file or process calls.
 - Trade Cycling is the only mod that players can install on the client. On the server, it only receives an empty packet from the client and sends nothing to the client. Vanilla clients can join and play normally. Without the client mod, a player cycles trades in the vanilla way: break the job block and place it again.
+- Do not tell players about Trade Cycling. Do not add a message in the chat, the MOTD, the web map or the server list. The mod is only for players who already want it.
 
 ## Versions
 
@@ -403,7 +404,6 @@ In `status.css`, hide `.bm-marker-player.mc-model img`.
   - The server also runs Share The Spare and Trade Cycling. Share The Spare uses the 26.2 build with the override in `config/fabric_loader_dependencies.json`.
   - Add only server-side mods. Players can use the vanilla client. Trade Cycling is the only exception: a player installs it on the client to get the trade cycling button.
 - Make one pull request with the changes to `cloud-init.yaml` and `AGENTS.md`. Include the new `.papercuts/` reports.
-- Tell Ola what a player installs to get trade cycling: Fabric Loader for 26.3, Fabric API and Trade Cycling for 26.3.
 - After the main change, ask Ola if you must do the optional phase now.
   - If yes, do the phase in a second pull request. Add `mc-skins` to the `cloud-init.yaml` line in `AGENTS.md`. Delete this file in that pull request.
   - If no, remove all sections of this file except "Optional phase: 3D player model" in the first pull request.
