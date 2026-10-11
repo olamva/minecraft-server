@@ -8,10 +8,11 @@ The gamerule `players_sleeping_percentage` is 50. The world stores it in `level.
 
 ## Goal
 
-- All players can use `/tpa`, `/tpahere`, `/tpaccept`, `/tpdeny` and `/back`.
-- No player can use `/home`, `/sethome`, `/warp`, `/spawn` or the other Essential Commands features.
+- All players can use `/tpa`, `/tpahere`, `/tpaccept` and `/tpdeny`.
+- No player can use `/back`, `/home`, `/sethome`, `/warp`, `/spawn` or the other Essential Commands features.
 - Lithium makes the server tick faster. Game behaviour stays vanilla.
 - The BlueMap mod replaces the BlueMap CLI. The map at https://mc.ola-vassbotn.no shows live player positions.
+- A click on a player in the panel makes the map follow that player.
 - Players keep the vanilla client. All mods are server-side only.
 
 ## Decisions
@@ -22,8 +23,7 @@ Do not change these decisions.
 - Keep the vanilla `server.jar` with its sha1 check. The Fabric launcher uses it through `-Dfabric.installer.server.gameJar=server.jar`. Without this option, the launcher downloads a second vanilla jar to `.fabric/server/26.3-server.jar`.
 - Save each mod as a jar without a version in its name, for example `mods/lithium.jar`. An update then replaces the old jar. Two versions of one mod in `mods/` stop the server.
 - Keep the rendered map. The mod uses `/opt/bluemap/data` and `/opt/bluemap/web` with absolute paths. BlueMap does not render the world again.
-- Keep `mcstatus`, `ping.py`, `status.js` and `status.css`.
-- Keep the default `allow_back_on_death=false`. `/back` returns to the location before the last teleport, not to the death location.
+- Keep `mcstatus` and `ping.py`. Change `status.js` and `status.css` only as the "Web UI" section tells.
 - Do not open new ports. Do not create OCI resources.
 
 ## Versions
@@ -107,12 +107,12 @@ Do not write `plugin.conf`. The defaults show live player markers and hide playe
 
 ### Essential Commands config
 
-Add `/opt/minecraft/config/EssentialCommands.properties`. Only `/tpa` and `/back` stay on. The other `enable_*` keys are already `false` by default.
+Add `/opt/minecraft/config/EssentialCommands.properties`. Only `/tpa` stays on. The other `enable_*` keys are already `false` by default.
 
 ```properties
 auto_afk_enabled=false
 enable_afk=false
-enable_back=true
+enable_back=false
 enable_day=false
 enable_delete_all_player_data=false
 enable_enderchest=false
@@ -158,6 +158,43 @@ Remove the two BlueMap CLI lines. Add these lines after the `server.jar` check:
 
 The existing `chown -R minecraft:minecraft /opt/minecraft /opt/bluemap` line gives the new files to the `minecraft` user.
 
+### Web UI
+
+Change `status.js` and `status.css`.
+
+The live data adds these items to the page:
+
+- A marker for each player, with the head and a name tag. The elements are `.bm-marker-player`, its `img` and `.bm-player-name`. BlueMap moves the markers in real time through server-sent events (`maps/<id>/live/sse`). BlueMap hides the marker of a player in a different dimension.
+- A player list button in the BlueMap control bar. The rule `#app .control-bar > :has(~ .space.greedy)` in `status.css` already hides it, together with the menu button. Keep it hidden. The custom panel stays the only player list.
+
+These items stay the same:
+
+- The 5.29 web app changes only the tile cache in `TileLoader.js` and `LowresTileLoader.js`. The lowres shader that `cutWalls` patches has no change. The zoom and settings code in `status.js` needs no change.
+- The panel reads `status.json` from `mcstatus` every 10 seconds. The markers move faster than the list. This is correct.
+
+Make these changes:
+
+1. Style the markers like the panel. Give `.bm-player-name` the `Minecraft` font, the `--theme-bg` background, `border-radius: .5em` and the blur of the panel. Keep the BlueMap rules for `distance-data`. They make the head smaller and hide the name when the camera is far away.
+2. Follow a player from the panel. Make each row in `#mc-players` a `button`, so the `#mc-panel button` rules give the hover and `.active` styles. Change the `#mc-players > div` rule to `#mc-players > button`. On click, do the steps of `MarkerItem.vue` in BlueMap. This sketch is not tested:
+
+   ```js
+   const cm = bluemap.mapViewer.controlsManager;
+   cm.controls?.stopFollowingPlayerMarker?.();
+   let marker = bluemap.playerMarkerManager.getPlayerMarker(player.id);
+   if (!marker || marker.data.foreign) {
+     const map = await bluemap.findPlayerMap(player.id);
+     if (!map) return;
+     await bluemap.switchMap(map.data.id);
+     marker = bluemap.playerMarkerManager.getPlayerMarker(player.id);
+   }
+   if (!marker?.visible) return;
+   cm.controls?.followPlayerMarker?.(marker);
+   cm.position.copy(marker.position);
+   ```
+
+   BlueMap stops the follow when the user moves the map. BlueMap also switches the map when the player goes to a different dimension (`followPlayerMarkerWorld` in `BlueMapApp.js`). In `tick()`, set `.active` on the row whose `player.id` is `cm.controls?.data?.followingPlayer?.data.playerUuid`. Then the mark goes away less than one second after the user moves the map. A spectator has no marker, so a click on a spectator does nothing.
+3. Use the head images from BlueMap. When a player joins, BlueMap writes the head to `maps/<id>/assets/playerheads/<uuid>.png` for each map. Set `head.src` to this path for the current map. If the image does not load, use `assets/steve.png`. The panel and the markers then show the same head, and the page sends no requests to mc-heads.net.
+
 ## Changes on the running VM
 
 Do the steps in this sequence.
@@ -171,7 +208,7 @@ Do the steps in this sequence.
    ```
 
 4. Download the launcher and the mods. Check each hash. Use the same commands as in `runcmd`.
-5. Write the config files from `cloud-init.yaml` with `sudo install -D -o minecraft -g minecraft -m 644 /dev/stdin <path>`.
+5. Write the config files, `status.js` and `status.css` from `cloud-init.yaml` with `sudo install -D -o minecraft -g minecraft -m 644 /dev/stdin <path>`.
 6. Update `/etc/systemd/system/minecraft.service` and `/usr/local/bin/bluemap-start-pos`.
 7. Remove the CLI service:
 
@@ -197,13 +234,20 @@ Do the steps in this sequence.
 
 - The journal shows Fabric Loader 0.19.5 with `fabric-api`, `essential_commands`, `lithium` and `bluemap`.
 - `/opt/minecraft/.fabric/server/` has no `26.3-server.jar`. This shows that the launcher uses the pinned `server.jar`.
-- `sudo mc "help tpa"` and `sudo mc "help back"` show the commands. `sudo mc "help home"`, `help warp` and `help spawn` show an error.
-- Compare `/opt/minecraft/config/EssentialCommands.properties` with this plan. Essential Commands writes all keys to the file at the first start. If you see a new `enable_*` key, set it to `false`, except `enable_tpa` and `enable_back`.
+- `sudo mc "help tpa"` shows the command. `sudo mc "help back"`, `help home`, `help warp` and `help spawn` show an error.
+- Compare `/opt/minecraft/config/EssentialCommands.properties` with this plan. Essential Commands writes all keys to the file at the first start. If you see a new `enable_*` key, set it to `false`, except `enable_tpa`.
 - `curl -s http://127.0.0.1:8100/settings.json` returns the BlueMap settings.
-- https://mc.ola-vassbotn.no shows the old tiles immediately, and the status panel works. BlueMap 5.29 replaces the web app files of 5.28, so check that `status.js` still works.
+- https://mc.ola-vassbotn.no shows the old tiles immediately. The panel, the map buttons, the settings and the zoom toward the cursor work. The lowres walls stay cut.
+- `curl -s https://mc.ola-vassbotn.no/maps/overworld/live/players.json` returns JSON with a `players` list.
+- With a player online, check these items in a browser at desktop width and at phone width:
+  - The marker shows on the correct map with the new style.
+  - A click on the row follows the player, and the row is active.
+  - A drag on the map stops the follow. Less than one second later, the row is not active.
+  - A click on a player in a different dimension switches the map.
+  - The panel shows the same head as the marker.
 - The journal shows no full render of all maps.
 - `sudo systemctl start mc-backup` ends without an error.
-- Ask Ola to test in the game with a player that is not an operator: `/tpa`, `/tpaccept`, `/tpdeny`, `/back`, and a player marker on the map.
+- Ask Ola to test in the game with a player that is not an operator: `/tpa`, `/tpaccept` and `/tpdeny`. Check that `/back` is an unknown command.
 
 ## Rollback
 
@@ -217,7 +261,7 @@ The mods add no blocks or items, so the vanilla server loads the world.
 ## Finish
 
 - Update `AGENTS.md`:
-  - The server runs Fabric with Fabric API, Essential Commands (`/tpa` and `/back` only), Lithium and BlueMap.
+  - The server runs Fabric with Fabric API, Essential Commands (`/tpa` only), Lithium and BlueMap.
   - The BlueMap mod replaces the CLI and the `bluemap` unit.
   - Add only server-side mods. Players use the vanilla client.
 - Delete this file.
