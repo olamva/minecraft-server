@@ -223,7 +223,7 @@ write_files:
       enable_invuln=false
       enable_motd=false
       enable_near=false
-      enable_nick=false
+      enable_nick=true
       enable_night=false
       enable_repair=false
       enable_rtp=false
