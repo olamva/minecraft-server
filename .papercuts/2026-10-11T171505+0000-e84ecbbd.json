@@ -1,0 +1,14 @@
+{
+  "id": "e84ecbbd",
+  "ts": "2026-10-11T17:15:05+00:00",
+  "text": "WebSearch reported Paper 26.3 as alpha (3 weeks stale); fill.papermc.io API says STABLE build 175",
+  "tags": [
+    "search",
+    "tools"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "24d5cfa0",
+  "where": "WebSearch",
+  "branch": "t3/minecraft-plugin-planning"
+}
