@@ -80,11 +80,36 @@ write_files:
     content: |
       [Service]
       User=minecraft
-      ExecStart=/bin/sh -c 'while :; do python3 -I /usr/local/bin/ping.py localhost 25565 > /opt/bluemap/web/status.json; sleep 10; done'
+      ExecStart=/bin/sh -c 'while :; do python3 -I /usr/local/bin/ping.py localhost 25565 > /opt/bluemap/web/status.json; python3 -I /usr/local/bin/mc-skins; sleep 10; done'
       Restart=always
 
       [Install]
       WantedBy=multi-user.target
+  - path: /usr/local/bin/mc-skins
+    content: |
+      import base64, json, os, time, urllib.request
+      skins = "/opt/bluemap/web/skins"
+      try:
+          players = json.load(open("/opt/bluemap/web/status.json"))["players"].get("sample", [])
+      except (OSError, ValueError):
+          raise SystemExit
+      try:
+          models = json.load(open(f"{skins}/models.json"))
+      except (OSError, ValueError):
+          models = {}
+      for player in players:
+          path = f"{skins}/{player['id']}.png"
+          if os.path.exists(path) and time.time() - os.path.getmtime(path) < 86400:
+              continue
+          try:
+              profile = json.load(urllib.request.urlopen(f"https://sessionserver.mojang.com/session/minecraft/profile/{player['id'].replace('-', '')}", timeout=10))
+              skin = json.loads(base64.b64decode(profile["properties"][0]["value"]))["textures"]["SKIN"]
+              png = urllib.request.urlopen(skin["url"].replace("http:", "https:", 1), timeout=10).read()
+          except (OSError, ValueError, LookupError):
+              continue
+          models[player["id"]] = skin.get("metadata", {}).get("model", "classic")
+          json.dump(models, open(f"{skins}/models.json", "w"))
+          open(path, "wb").write(png)
   - path: /usr/local/bin/mc-backup
     permissions: "0755"
     content: |
@@ -448,6 +473,99 @@ write_files:
       };
       poll();
       setInterval(tick, 1000);
+
+      const Three = BlueMap.Three;
+      const parts = [
+        ["head", 8, 8, 8, 0, 0, 32, 0, 0.5, 0, 28, 24],
+        ["body", 8, 12, 4, 16, 16, 16, 32, 0.25, 0, 18, 18],
+        ["rightArm", 4, 12, 4, 40, 16, 40, 32, 0.25, -6, 18, 22],
+        ["leftArm", 4, 12, 4, 32, 48, 48, 48, 0.25, 6, 18, 22],
+        ["rightLeg", 4, 12, 4, 0, 16, 0, 32, 0.25, -2, 6, 12],
+        ["leftLeg", 4, 12, 4, 16, 48, 0, 48, 0.25, 2, 6, 12],
+      ];
+      const boxes = {};
+      const box = (w, h, d, u, v, grow, size) => boxes[[w, h, d, u, v, grow, size]] ??= (() => {
+        const geometry = new Three.BoxGeometry(w + grow * 2, h + grow * 2, d + grow * 2);
+        [[u + d + w, v + d, d, h], [u, v + d, d, h], [u + d, v, w, d], [u + d + w, v, w, d], [u + d, v + d, w, h], [u + 2 * d + w, v + d, w, h]].forEach(([x, y, fw, fh], face) => {
+          const [l, r, t, b] = [x / 64, (x + fw) / 64, 1 - y / size, 1 - (y + fh) / size];
+          (face === 3 ? [[l, b], [r, b], [l, t], [r, t]] : [[l, t], [r, t], [l, b], [r, b]]).forEach(([s, q], i) => geometry.attributes.uv.setXY(face * 4 + i, s, q));
+        });
+        return geometry;
+      })();
+
+      const skins = new Map();
+      const skin = id => {
+        if (!skins.has(id)) {
+          const entry = {};
+          skins.set(id, entry);
+          Promise.all([fetch("skins/models.json", { cache: "no-store" }).then(r => r.json()), new Three.TextureLoader().loadAsync(`skins/${id}.png`)]).then(([models, texture]) => {
+            Object.assign(texture, { magFilter: Three.NearestFilter, minFilter: Three.NearestFilter, generateMipmaps: false, colorSpace: Three.SRGBColorSpace });
+            Object.assign(entry, {
+              slim: models[id] === "slim",
+              size: texture.image.height,
+              base: new Three.MeshBasicMaterial({ map: texture, alphaTest: 0.5 }),
+              overlay: new Three.MeshBasicMaterial({ map: texture, alphaTest: 0.5, side: Three.DoubleSide }),
+            });
+          }).catch(() => setTimeout(() => skins.delete(id), 30000));
+        }
+        return skins.get(id);
+      };
+
+      const build = entry => {
+        const model = new Three.Group();
+        const limbs = {};
+        const legacy = entry.size === 32;
+        for (const [name, w, h, d, u, v, ou, ov, grow, x, y, pivot] of parts) {
+          const slim = entry.slim && name.endsWith("Arm");
+          const [bu, bv] = legacy ? parts.find(part => part[0] === name.replace("left", "right")).slice(4, 6) : [u, v];
+          const layers = [[bu, bv, 0, entry.base], ...(!legacy || name === "head" ? [[ou, ov, grow, entry.overlay]] : [])];
+          const group = limbs[name] = new Three.Group();
+          group.position.set(slim ? Math.sign(x) * 5.5 : x, pivot, 0);
+          for (const [lu, lv, lg, material] of layers) {
+            const mesh = new Three.Mesh(box(slim ? 3 : w, h, d, lu, lv, lg, entry.size), material);
+            mesh.position.y = y - pivot;
+            group.add(mesh);
+          }
+          model.add(group);
+        }
+        model.scale.setScalar(0.9375 / 16);
+        model.position.y = -1.8;
+        return { model, limbs, speed: 0, phase: 0 };
+      };
+
+      let last = performance.now();
+      const animate = now => {
+        requestAnimationFrame(animate);
+        const dt = Math.max(now - last, 1) / 1000;
+        last = now;
+        const camera = bluemap.mapViewer.camera;
+        let shown = false;
+        for (const marker of bluemap.mapViewer.markers.markerSets.get("bm-players")?.markers.values() ?? []) {
+          const entry = skin(marker.data.playerUuid);
+          if (!marker.userData.mc && entry.base) {
+            marker.userData.mc = { ...build(entry), x: marker.position.x, z: marker.position.z };
+            marker.add(marker.userData.mc.model);
+          }
+          const mc = marker.userData.mc;
+          if (!mc) continue;
+          const { x, z } = marker.position;
+          mc.speed += (Math.hypot(x - mc.x, z - mc.z) / dt - mc.speed) * (1 - Math.exp(-dt / 0.5));
+          [mc.x, mc.z] = [x, z];
+          const near = marker.visible && marker.position.distanceTo(camera.position) < 1.875 * innerHeight / 64 / Math.tan(camera.fov * Three.MathUtils.DEG2RAD / 2);
+          mc.model.visible = near;
+          marker.element.classList.toggle("mc-model", near);
+          if (!near) continue;
+          const pace = Math.min(mc.speed, 8);
+          const swing = Math.sin(mc.phase += pace * dt * 2.66) * 0.6 * pace / 4.3;
+          mc.model.rotation.y = -marker.data.rotation.yaw * Three.MathUtils.DEG2RAD;
+          mc.limbs.head.rotation.x = marker.data.rotation.pitch * Three.MathUtils.DEG2RAD;
+          mc.limbs.rightLeg.rotation.x = mc.limbs.leftArm.rotation.x = swing;
+          mc.limbs.leftLeg.rotation.x = mc.limbs.rightArm.rotation.x = -swing;
+          shown = true;
+        }
+        if (shown) bluemap.mapViewer.redraw();
+      };
+      requestAnimationFrame(animate);
   - path: /opt/bluemap/web/status.css
     content: |
       @font-face {
@@ -499,6 +617,9 @@ write_files:
       }
       #map-container .bm-marker-player img {
         filter: drop-shadow(1px 1px 3px #0008);
+      }
+      #map-container .bm-marker-player.mc-model img {
+        display: none;
       }
       #map-container .bm-marker-player .bm-player-name {
         padding: .25em .5em;
@@ -649,7 +770,7 @@ runcmd:
   - cd /opt/minecraft/mods && echo "032a96971437e43a3722d8d6c026aeb9837117e1a56521d017a68fce8bb5630ceffd98454672b9d6c589a1008fcd2ab4cd48f4af8fadf08755313b1e326bedb1  bluemap.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "4db886c75c61b28c732695812453e621fdf4f440b10c29778be65a406135e6633ca549f79808157b4a4ab442541e5eb50edcfd0c81d0b6b042e2b295c06b1ce4  share-the-spare.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "454dfd7f0c89155dac0ddc2b1bd69486c439d27a21480d8ff6dac46c1e3b7809e0ae28101bd31fb869999ac2afa58c2b8f153046b85f9545cee432ae396b2cac  trade-cycling.jar" | sha512sum -c
-  - install -d -o minecraft -g minecraft /opt/bluemap/web/fonts
+  - install -d -o minecraft -g minecraft /opt/bluemap/web/fonts /opt/bluemap/web/skins
   - curl -sSfLo /tmp/minecraft-fonts.zip https://github.com/macimas-fonts/macsMinecraft/releases/download/1.03/macsMinecraft%2Bwoff2.zip
   - echo "95a02a3cfddf2d2d21b7307899c4d8be94cc42d3d2e968e8feaf1c2ed2dd2ed6  /tmp/minecraft-fonts.zip" | sha256sum -c
   - python3 -I -c 'import zipfile; z=zipfile.ZipFile("/tmp/minecraft-fonts.zip"); out="/opt/bluemap/web/fonts/"; open(out+"minecraft-regular.woff2","wb").write(z.read("macsMinecraft-Regular.woff2")); open(out+"minecraft-bold.woff2","wb").write(z.read("macsMinecraft-Bold.woff2"))'

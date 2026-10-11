@@ -1,0 +1,14 @@
+{
+  "id": "6b302b69",
+  "ts": "2026-10-11T22:52:31+00:00",
+  "text": "T3 preview tab runs requestAnimationFrame at ~1 fps and throttles setTimeout to ~1.5 s even after preview_open open=true, so real-time animation tests are impossible; had to call the loop with synthetic timestamps",
+  "tags": [
+    "browser",
+    "tools"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "7dad105a",
+  "where": "mcp__t3-code__preview_evaluate",
+  "branch": "t3/bluemap-3d-player-model"
+}
