@@ -14,7 +14,9 @@ The gamerule `players_sleeping_percentage` is 50. The world stores it in `level.
 - The BlueMap mod replaces the BlueMap CLI. The map at https://mc.ola-vassbotn.no shows live player positions.
 - A click on a player in the panel makes the map follow that player.
 - Optional, as a second step: a 3D player model that walks. See "Optional phase: 3D player model".
-- Players keep the vanilla client. All mods are server-side only.
+- When a player cures a zombie villager, all players get the cure discount at that villager. Players who join later get it too (Share The Spare).
+- A player who installs Trade Cycling on the client gets a button and a keybind (`C`) in the trade screen. They cycle the trades of a villager that nobody has traded with yet.
+- Players can join with the vanilla client. All mods except Trade Cycling are server-side only.
 
 ## Decisions
 
@@ -26,6 +28,9 @@ Do not change these decisions.
 - Keep the rendered map. The mod uses `/opt/bluemap/data` and `/opt/bluemap/web` with absolute paths. BlueMap does not render the world again.
 - Keep `mcstatus` and `ping.py`. Change `status.js` and `status.css` only as the "Web UI" section tells.
 - Do not open new ports. Do not create OCI resources.
+- Share The Spare has no 26.3 build. Use the 26.2 build. Its `fabric.mod.json` requires `"minecraft": "~26.2"`, so Fabric does not load it on 26.3. `config/fabric_loader_dependencies.json` replaces this range with `~26.3`. On 2026-10-11, all 36 Minecraft references in the jar resolve in the 26.3 server jar. These include the mixin target `ZombieVillager.finishConversion(ServerLevel)` and the shadow field `ZombieVillager.conversionStarter` (`UUID`). Nobody has tested the mod on 26.3. When a 26.3 build is available, use it and remove the override.
+- Share The Spare has no public source code. Its jar calls only Minecraft, Fabric API, slf4j and fastutil. It makes no network, file or process calls.
+- Trade Cycling is the only mod that players can install on the client. On the server, it only receives an empty packet from the client and sends nothing to the client. Vanilla clients can join and play normally. Without the client mod, a player cycles trades in the vanilla way: break the job block and place it again.
 
 ## Versions
 
@@ -36,13 +41,15 @@ Do not change these decisions.
 | `mods/essential-commands.jar` (0.42.0-mc26.3) | `https://cdn.modrinth.com/data/6VdDUivB/versions/KANmt7ie/essential_commands-0.42.0-mc26.3.jar` | sha512 `6edda40084a85446817e1c393f8ea0a386300762c553990ee2bf613a93623f883be752824635f3d7f1d2a89c7b247cc246afd18a1e0d293ff022433b301e180e` |
 | `mods/lithium.jar` (0.26.2+mc26.3) | `https://cdn.modrinth.com/data/gvQqBUqZ/versions/xS0Q8LSi/lithium-fabric-0.26.2%2Bmc26.3.jar` | sha512 `4d7fee66132eedc71feab9390b92c95d7058edbdad0fecfac1d836a2950b97a7ca463afbede61c7ef361ce65e1f927ab9e89dde5bf2e0e0ce486afb5c5dbee40` |
 | `mods/bluemap.jar` (5.29-fabric) | `https://cdn.modrinth.com/data/swbUV1cr/versions/SX74rxzP/bluemap-5.29-fabric.jar` | sha512 `032a96971437e43a3722d8d6c026aeb9837117e1a56521d017a68fce8bb5630ceffd98454672b9d6c589a1008fcd2ab4cd48f4af8fadf08755313b1e326bedb1` |
+| `mods/share-the-spare.jar` (1.0.0 for 26.2) | `https://cdn.modrinth.com/data/eSkHOxDo/versions/KEuEGVhr/sharethespare-26.2-1.0.0.jar` | sha512 `4db886c75c61b28c732695812453e621fdf4f440b10c29778be65a406135e6633ca549f79808157b4a4ab442541e5eb50edcfd0c81d0b6b042e2b295c06b1ce4` |
+| `mods/trade-cycling.jar` (fabric-1.0.22+26.3, beta) | `https://cdn.modrinth.com/data/qpPoAL6m/versions/URzCi2W4/trade-cycling-fabric-1.0.22%2B26.3.jar` | sha512 `454dfd7f0c89155dac0ddc2b1bd69486c439d27a21480d8ff6dac46c1e3b7809e0ae28101bd31fb869999ac2afa58c2b8f153046b85f9545cee432ae396b2cac` |
 
-Essential Commands and BlueMap need Fabric API. Lithium needs no other mod.
+Essential Commands, BlueMap, Share The Spare and Trade Cycling need Fabric API. Lithium needs no other mod.
 
 Before you start, check for newer releases. If you change a version, change its hash too.
 
 ```sh
-for s in fabric-api essential-commands lithium bluemap; do curl -sG "https://api.modrinth.com/v2/project/$s/version" --data-urlencode 'game_versions=["26.3"]' --data-urlencode 'loaders=["fabric"]' | python3 -I -c "import json,sys; v=json.load(sys.stdin)[0]; f=[f for f in v['files'] if f['primary']][0]; print('$s', v['version_number'], f['url'], f['hashes']['sha512'])"; done
+for s in fabric-api essential-commands lithium bluemap share-the-spare-by-jlscsr trade-cycling; do curl -sG "https://api.modrinth.com/v2/project/$s/version" --data-urlencode 'game_versions=["26.3"]' --data-urlencode 'loaders=["fabric"]' | python3 -I -c "import json,sys; v=json.load(sys.stdin); f=v and [f for f in v[0]['files'] if f['primary']][0]; print('$s', *((v[0]['version_number'], f['url'], f['hashes']['sha512']) if v else ['no 26.3 build']))"; done
 curl -s https://meta.fabricmc.net/v2/versions/loader/26.3 | python3 -I -c 'import json,sys; print(json.load(sys.stdin)[0]["loader"]["version"])'
 ```
 
@@ -139,6 +146,26 @@ enable_wastebin=false
 enable_workbench=false
 ```
 
+### Fabric Loader dependency override
+
+Add `/opt/minecraft/config/fabric_loader_dependencies.json`. A key without `+` or `-` replaces the full `depends` map of the mod, so list all four dependencies.
+
+```json
+{
+  "version": 1,
+  "overrides": {
+    "sharethespare": {
+      "depends": {
+        "fabricloader": ">=0.19.5",
+        "minecraft": "~26.3",
+        "java": ">=25",
+        "fabric-api": "*"
+      }
+    }
+  }
+}
+```
+
 ### `runcmd`
 
 Remove the two BlueMap CLI lines. Add these lines after the `server.jar` check:
@@ -151,10 +178,14 @@ Remove the two BlueMap CLI lines. Add these lines after the `server.jar` check:
   - curl -sSfLo /opt/minecraft/mods/essential-commands.jar https://cdn.modrinth.com/data/6VdDUivB/versions/KANmt7ie/essential_commands-0.42.0-mc26.3.jar
   - curl -sSfLo /opt/minecraft/mods/lithium.jar https://cdn.modrinth.com/data/gvQqBUqZ/versions/xS0Q8LSi/lithium-fabric-0.26.2%2Bmc26.3.jar
   - curl -sSfLo /opt/minecraft/mods/bluemap.jar https://cdn.modrinth.com/data/swbUV1cr/versions/SX74rxzP/bluemap-5.29-fabric.jar
+  - curl -sSfLo /opt/minecraft/mods/share-the-spare.jar https://cdn.modrinth.com/data/eSkHOxDo/versions/KEuEGVhr/sharethespare-26.2-1.0.0.jar
+  - curl -sSfLo /opt/minecraft/mods/trade-cycling.jar https://cdn.modrinth.com/data/qpPoAL6m/versions/URzCi2W4/trade-cycling-fabric-1.0.22%2B26.3.jar
   - cd /opt/minecraft/mods && echo "5ab70908952f1d2346d16b122ca31327f4055db59c279a1bc3c3c581ce359bb541cba15730f55b0727be7c7c4debc4a4412a183c228e0d4dea81c734f7b412ce  fabric-api.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "6edda40084a85446817e1c393f8ea0a386300762c553990ee2bf613a93623f883be752824635f3d7f1d2a89c7b247cc246afd18a1e0d293ff022433b301e180e  essential-commands.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "4d7fee66132eedc71feab9390b92c95d7058edbdad0fecfac1d836a2950b97a7ca463afbede61c7ef361ce65e1f927ab9e89dde5bf2e0e0ce486afb5c5dbee40  lithium.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "032a96971437e43a3722d8d6c026aeb9837117e1a56521d017a68fce8bb5630ceffd98454672b9d6c589a1008fcd2ab4cd48f4af8fadf08755313b1e326bedb1  bluemap.jar" | sha512sum -c
+  - cd /opt/minecraft/mods && echo "4db886c75c61b28c732695812453e621fdf4f440b10c29778be65a406135e6633ca549f79808157b4a4ab442541e5eb50edcfd0c81d0b6b042e2b295c06b1ce4  share-the-spare.jar" | sha512sum -c
+  - cd /opt/minecraft/mods && echo "454dfd7f0c89155dac0ddc2b1bd69486c439d27a21480d8ff6dac46c1e3b7809e0ae28101bd31fb869999ac2afa58c2b8f153046b85f9545cee432ae396b2cac  trade-cycling.jar" | sha512sum -c
 ```
 
 The existing `chown -R minecraft:minecraft /opt/minecraft /opt/bluemap` line gives the new files to the `minecraft` user.
@@ -233,7 +264,7 @@ Do the steps in this sequence.
 
 ## Checks
 
-- The journal shows Fabric Loader 0.19.5 with `fabric-api`, `essential_commands`, `lithium` and `bluemap`.
+- The journal shows Fabric Loader 0.19.5 with `fabric-api`, `essential_commands`, `lithium`, `bluemap`, `sharethespare` and `trade_cycling`. It shows no dependency error and no mixin error.
 - `/opt/minecraft/.fabric/server/` has no `26.3-server.jar`. This shows that the launcher uses the pinned `server.jar`.
 - `sudo mc "help tpa"` shows the command. `sudo mc "help back"`, `help home`, `help warp` and `help spawn` show an error.
 - Compare `/opt/minecraft/config/EssentialCommands.properties` with this plan. Essential Commands writes all keys to the file at the first start. If you see a new `enable_*` key, set it to `false`, except `enable_tpa`.
@@ -249,6 +280,10 @@ Do the steps in this sequence.
 - The journal shows no full render of all maps.
 - `sudo systemctl start mc-backup` ends without an error.
 - Ask Ola to test in the game with a player that is not an operator: `/tpa`, `/tpaccept` and `/tpdeny`. Check that `/back` is an unknown command.
+- Ask Ola to test Share The Spare. Player A cures a zombie villager. Player B, who is online, gets the same low prices at that villager. A player who joins later also gets them.
+- Ask Ola to test Trade Cycling:
+  - A player with Fabric Loader, Fabric API and Trade Cycling 26.3 on the client opens a villager that has a job block and no trades yet. The button and the `C` key change the trades.
+  - A player with the vanilla client can join and trade normally.
 
 ## Rollback
 
@@ -365,8 +400,10 @@ In `status.css`, hide `.bm-marker-player.mc-model img`.
 - Update `AGENTS.md`:
   - The server runs Fabric with Fabric API, Essential Commands (`/tpa` only), Lithium and BlueMap.
   - The BlueMap mod replaces the CLI and the `bluemap` unit.
-  - Add only server-side mods. Players use the vanilla client.
+  - The server also runs Share The Spare and Trade Cycling. Share The Spare uses the 26.2 build with the override in `config/fabric_loader_dependencies.json`.
+  - Add only server-side mods. Players can use the vanilla client. Trade Cycling is the only exception: a player installs it on the client to get the trade cycling button.
 - Make one pull request with the changes to `cloud-init.yaml` and `AGENTS.md`. Include the new `.papercuts/` reports.
+- Tell Ola what a player installs to get trade cycling: Fabric Loader for 26.3, Fabric API and Trade Cycling for 26.3.
 - After the main change, ask Ola if you must do the optional phase now.
   - If yes, do the phase in a second pull request. Add `mc-skins` to the `cloud-init.yaml` line in `AGENTS.md`. Delete this file in that pull request.
   - If no, remove all sections of this file except "Optional phase: 3D player model" in the first pull request.
