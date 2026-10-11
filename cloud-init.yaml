@@ -31,7 +31,8 @@ write_files:
       [Service]
       User=minecraft
       WorkingDirectory=/opt/minecraft
-      ExecStart=/usr/bin/java -XX:InitialRAMPercentage=80 -XX:MaxRAMPercentage=80 -jar server.jar nogui
+      ExecStartPre=-/usr/bin/python3 -I /usr/local/bin/bluemap-start-pos
+      ExecStart=/usr/bin/java -XX:InitialRAMPercentage=80 -XX:MaxRAMPercentage=80 -Dfabric.installer.server.gameJar=server.jar -jar fabric-server-launch.jar nogui
       Sockets=minecraft.socket
       StandardInput=socket
       StandardOutput=journal
@@ -46,24 +47,12 @@ write_files:
     content: |
       #!/bin/sh
       echo "$*" > /run/minecraft.stdin
-  - path: /etc/systemd/system/bluemap.service
-    content: |
-      [Service]
-      User=minecraft
-      WorkingDirectory=/opt/bluemap
-      ExecStartPre=-/usr/bin/python3 -I /usr/local/bin/bluemap-start-pos
-      ExecStart=/usr/bin/java -Xmx2g -jar bluemap-cli.jar -r -u -w
-      Nice=19
-      Restart=on-failure
-
-      [Install]
-      WantedBy=multi-user.target
   - path: /usr/local/bin/bluemap-start-pos
     content: |
       import glob, re, statistics, zlib
       inhabited = b"\x04\x00\x0dInhabitedTime"
       full = b"\x08\x00\x06Status\x00\x0eminecraft:full"
-      for conf in glob.glob("/opt/bluemap/config/maps/*.conf"):
+      for conf in glob.glob("/opt/minecraft/config/bluemap/maps/*.conf"):
           text = open(conf).read()
           world = re.search(r'^world: "(.+)"', text, re.M)[1]
           namespace, dimension = re.search(r'^dimension: "(.+):(.+)"', text, re.M).groups()
@@ -139,26 +128,26 @@ write_files:
           reverse_proxy 127.0.0.1:8100
         }
       }
-  - path: /opt/bluemap/config/core.conf
+  - path: /opt/minecraft/config/bluemap/core.conf
     content: |
       accept-download: true
-      data: "data"
-      render-thread-count: 3
-  - path: /opt/bluemap/config/webserver.conf
+      data: "/opt/bluemap/data"
+      render-thread-count: 2
+  - path: /opt/minecraft/config/bluemap/webserver.conf
     content: |
-      webroot: "web"
+      webroot: "/opt/bluemap/web"
       ip: "127.0.0.1"
-  - path: /opt/bluemap/config/webapp.conf
+  - path: /opt/minecraft/config/bluemap/webapp.conf
     content: |
-      webroot: "web"
+      webroot: "/opt/bluemap/web"
       hires-slider-default: 200
       scripts: ["status.js"]
       styles: ["status.css"]
-  - path: /opt/bluemap/config/storages/file.conf
+  - path: /opt/minecraft/config/bluemap/storages/file.conf
     content: |
       storage-type: file
-      root: "web/maps"
-  - path: /opt/bluemap/config/maps/overworld.conf
+      root: "/opt/bluemap/web/maps"
+  - path: /opt/minecraft/config/bluemap/maps/overworld.conf
     content: |
       world: "/opt/minecraft/world"
       dimension: "minecraft:overworld"
@@ -166,7 +155,7 @@ write_files:
       min-inhabited-time: 1
       remove-caves-below-y: 10000
       cave-detection-ocean-floor: -5
-  - path: /opt/bluemap/config/maps/nether.conf
+  - path: /opt/minecraft/config/bluemap/maps/nether.conf
     content: |
       world: "/opt/minecraft/world"
       dimension: "minecraft:the_nether"
@@ -178,7 +167,7 @@ write_files:
       min-inhabited-time: 1
       remove-caves-below-y: -10000
       render-mask: [{}, {subtract: true, min-y: 90, max-y: 127}]
-  - path: /opt/bluemap/config/maps/end.conf
+  - path: /opt/minecraft/config/bluemap/maps/end.conf
     content: |
       world: "/opt/minecraft/world"
       dimension: "minecraft:the_end"
@@ -189,6 +178,54 @@ write_files:
       ambient-light: 0.6
       min-inhabited-time: 1
       remove-caves-below-y: -10000
+  - path: /opt/minecraft/config/EssentialCommands.properties
+    content: |
+      auto_afk_enabled=false
+      enable_afk=false
+      enable_anvil=false
+      enable_back=false
+      enable_bed=false
+      enable_day=false
+      enable_delete_all_player_data=false
+      enable_enderchest=false
+      enable_experimental_essentialsx_converter=false
+      enable_extinguish=false
+      enable_feed=false
+      enable_fly=false
+      enable_gametime=false
+      enable_heal=false
+      enable_home=false
+      enable_invuln=false
+      enable_motd=false
+      enable_near=false
+      enable_nick=false
+      enable_night=false
+      enable_repair=false
+      enable_rtp=false
+      enable_rules=false
+      enable_sleep=false
+      enable_spawn=false
+      enable_suicide=false
+      enable_top=false
+      enable_tpa=true
+      enable_warp=false
+      enable_wastebin=false
+      enable_workbench=false
+  - path: /opt/minecraft/config/fabric_loader_dependencies.json
+    content: |
+      {
+        "version": 1,
+        "overrides": {
+          "sharethespare": {
+            "depends": {
+              "fabricloader": ">=0.19.5",
+              "minecraft": "~26.3",
+              "java": ">=25",
+              "fabric-api": "*"
+            }
+          }
+        }
+      }
   - path: /opt/bluemap/web/server-icon.png
     encoding: b64
     content: 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
@@ -359,6 +396,22 @@ write_files:
       towardPoint(controls.mouseZoom, () => cursor);
       towardPoint(controls.touchZoom, () => pinch);
 
+      const follow = async id => {
+        const cm = bluemap.mapViewer.controlsManager;
+        cm.controls?.stopFollowingPlayerMarker?.();
+        let marker = bluemap.playerMarkerManager?.getPlayerMarker(id);
+        if (!marker || marker.data.foreign) {
+          const map = await bluemap.findPlayerMap(id);
+          if (map) await bluemap.switchMap(map.data.id, false);
+          marker = map && bluemap.playerMarkerManager?.getPlayerMarker(id);
+        }
+        if (marker?.visible) {
+          cm.controls?.followPlayerMarker?.(marker);
+          cm.position.copy(marker.position);
+        }
+        tick();
+      };
+
       let checked = 0;
       let next = 0;
       const poll = async () => {
@@ -369,10 +422,13 @@ write_files:
         who.className = status ? "online" : "offline";
         who.textContent = status ? `${status.players.online}/${status.players.max} online` : "Server offline";
         players.replaceChildren(...sample.map(player => {
-          const row = document.createElement("div");
+          const row = document.createElement("button");
           const head = document.createElement("img");
           const name = document.createElement("span");
-          head.src = `https://mc-heads.net/avatar/${encodeURIComponent(player.id)}/24`;
+          row.value = player.id;
+          row.onclick = () => follow(player.id);
+          head.addEventListener("error", () => head.src = "assets/steve.png", { once: true });
+          head.src = `${bluemap.mapViewer.map?.data.mapDataRoot}/assets/playerheads/${player.id}.png`;
           head.alt = "";
           head.width = 24;
           head.height = 24;
@@ -383,8 +439,13 @@ write_files:
         const delay = Math.min(10000, Math.max(1000, checked + 11000 - Date.now()));
         next = Date.now() + delay;
         setTimeout(poll, delay);
+        tick();
       };
-      const tick = () => countdown.textContent = next ? `Next check in ${Math.max(0, Math.ceil((next - Date.now()) / 1000))} s` : "";
+      const tick = () => {
+        const following = bluemap.mapViewer.controlsManager.controls?.data?.followingPlayer?.playerUuid;
+        players.querySelectorAll("button").forEach(row => row.classList.toggle("active", row.value === following));
+        countdown.textContent = next ? `Next check in ${Math.max(0, Math.ceil((next - Date.now()) / 1000))} s` : "";
+      };
       poll();
       setInterval(tick, 1000);
   - path: /opt/bluemap/web/status.css
@@ -432,6 +493,22 @@ write_files:
       }
       #app .control-bar > .space:not(.greedy), #app .control-bar > :has(~ .space.greedy) {
         display: none;
+      }
+      #map-container .bm-marker-player {
+        filter: none;
+      }
+      #map-container .bm-marker-player img {
+        filter: drop-shadow(1px 1px 3px #0008);
+      }
+      #map-container .bm-marker-player .bm-player-name {
+        padding: .25em .5em;
+        border-radius: .5em;
+        font-family: Minecraft, system-ui, sans-serif;
+        color: var(--theme-fg);
+        background: var(--theme-bg);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .5);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
       }
       #zoom-buttons {
         filter: none;
@@ -497,13 +574,14 @@ write_files:
       #mc-players {
         display: grid;
         gap: .25em;
-        padding: .25em .5em;
+        padding: .25em 0;
         font-family: Minecraft, system-ui, sans-serif;
       }
-      #mc-players > div {
+      #mc-players > button {
         display: flex;
         align-items: center;
         gap: .5em;
+        padding: .25em .5em;
       }
       #mc-players img {
         image-rendering: pixelated;
@@ -556,8 +634,21 @@ runcmd:
   - curl -sSfo /opt/minecraft/server.jar https://piston-data.mojang.com/v1/objects/33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c/server.jar
   - cd /opt/minecraft && echo "33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c  server.jar" | sha1sum -c
   - echo eula=true > /opt/minecraft/eula.txt
-  - curl -sSfLo /opt/bluemap/bluemap-cli.jar https://github.com/BlueMap-Minecraft/BlueMap/releases/download/v5.28/bluemap-5.28-cli.jar
-  - cd /opt/bluemap && echo "c6868465f8f972a64a3f2acc32112cab8560339045747f81359bdea6959f7ac2  bluemap-cli.jar" | sha256sum -c
+  - install -d -o minecraft -g minecraft /opt/minecraft/mods
+  - curl -sSfLo /opt/minecraft/fabric-server-launch.jar https://meta.fabricmc.net/v2/versions/loader/26.3/0.19.5/1.1.2/server/jar
+  - cd /opt/minecraft && echo "0b56ad54d762172e8b8748e467f584f071e4dedecd93dc336cf2c68837e790be  fabric-server-launch.jar" | sha256sum -c
+  - curl -sSfLo /opt/minecraft/mods/fabric-api.jar https://cdn.modrinth.com/data/P7dR8mSH/versions/v2j28coa/fabric-api-0.162.0%2B26.3.jar
+  - curl -sSfLo /opt/minecraft/mods/essential-commands.jar https://cdn.modrinth.com/data/6VdDUivB/versions/KANmt7ie/essential_commands-0.42.0-mc26.3.jar
+  - curl -sSfLo /opt/minecraft/mods/lithium.jar https://cdn.modrinth.com/data/gvQqBUqZ/versions/xS0Q8LSi/lithium-fabric-0.26.2%2Bmc26.3.jar
+  - curl -sSfLo /opt/minecraft/mods/bluemap.jar https://cdn.modrinth.com/data/swbUV1cr/versions/SX74rxzP/bluemap-5.29-fabric.jar
+  - curl -sSfLo /opt/minecraft/mods/share-the-spare.jar https://cdn.modrinth.com/data/eSkHOxDo/versions/KEuEGVhr/sharethespare-26.2-1.0.0.jar
+  - curl -sSfLo /opt/minecraft/mods/trade-cycling.jar https://cdn.modrinth.com/data/qpPoAL6m/versions/URzCi2W4/trade-cycling-fabric-1.0.22%2B26.3.jar
+  - cd /opt/minecraft/mods && echo "5ab70908952f1d2346d16b122ca31327f4055db59c279a1bc3c3c581ce359bb541cba15730f55b0727be7c7c4debc4a4412a183c228e0d4dea81c734f7b412ce  fabric-api.jar" | sha512sum -c
+  - cd /opt/minecraft/mods && echo "6edda40084a85446817e1c393f8ea0a386300762c553990ee2bf613a93623f883be752824635f3d7f1d2a89c7b247cc246afd18a1e0d293ff022433b301e180e  essential-commands.jar" | sha512sum -c
+  - cd /opt/minecraft/mods && echo "4d7fee66132eedc71feab9390b92c95d7058edbdad0fecfac1d836a2950b97a7ca463afbede61c7ef361ce65e1f927ab9e89dde5bf2e0e0ce486afb5c5dbee40  lithium.jar" | sha512sum -c
+  - cd /opt/minecraft/mods && echo "032a96971437e43a3722d8d6c026aeb9837117e1a56521d017a68fce8bb5630ceffd98454672b9d6c589a1008fcd2ab4cd48f4af8fadf08755313b1e326bedb1  bluemap.jar" | sha512sum -c
+  - cd /opt/minecraft/mods && echo "4db886c75c61b28c732695812453e621fdf4f440b10c29778be65a406135e6633ca549f79808157b4a4ab442541e5eb50edcfd0c81d0b6b042e2b295c06b1ce4  share-the-spare.jar" | sha512sum -c
+  - cd /opt/minecraft/mods && echo "454dfd7f0c89155dac0ddc2b1bd69486c439d27a21480d8ff6dac46c1e3b7809e0ae28101bd31fb869999ac2afa58c2b8f153046b85f9545cee432ae396b2cac  trade-cycling.jar" | sha512sum -c
   - install -d -o minecraft -g minecraft /opt/bluemap/web/fonts
   - curl -sSfLo /tmp/minecraft-fonts.zip https://github.com/macimas-fonts/macsMinecraft/releases/download/1.03/macsMinecraft%2Bwoff2.zip
   - echo "95a02a3cfddf2d2d21b7307899c4d8be94cc42d3d2e968e8feaf1c2ed2dd2ed6  /tmp/minecraft-fonts.zip" | sha256sum -c
@@ -566,5 +657,5 @@ runcmd:
   - iptables -I INPUT -p tcp -m multiport --dports 25565,80,443 -m state --state NEW -j ACCEPT
   - netfilter-persistent save
   - systemctl daemon-reload
-  - systemctl enable minecraft.service bluemap.service mcstatus.service mc-backup.timer
+  - systemctl enable minecraft.service mcstatus.service mc-backup.timer
   - systemctl restart caddy
