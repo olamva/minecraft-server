@@ -60,7 +60,7 @@ log "VM ready"
 "${NTNU[@]}" 'tar -C ~/minecraft --exclude=server.jar --exclude=eula.txt --exclude=libraries --exclude=versions --exclude=logs -czf - .' | "${VM[@]}" 'sudo tar -C /opt/minecraft -xzf - && sudo chown -R minecraft:minecraft /opt/minecraft' || fail "world copy"
 log "world copied"
 
-"${VM[@]}" 'sudo systemctl start minecraft bluemap mcstatus; for i in $(seq 1 120); do sudo grep -q "Done (" /opt/minecraft/logs/latest.log 2> /dev/null && exit 0; sleep 2; done; exit 1' || fail "server start: $("${VM[@]}" 'sudo journalctl -u minecraft -n 20 --no-pager' 2>&1)"
+"${VM[@]}" 'sudo systemctl start minecraft mcstatus; for i in $(seq 1 120); do sudo grep -q "Done (" /opt/minecraft/logs/latest.log 2> /dev/null && exit 0; sleep 2; done; exit 1' || fail "server start: $("${VM[@]}" 'sudo journalctl -u minecraft -n 20 --no-pager' 2>&1)"
 log "PING $(python3 -I "$D/ping.py" "$PUBIP" 25565 2>&1)"
 log "DONE at $(ocpus) OCPU"
 

@@ -1,0 +1,14 @@
+{
+  "id": "d7e39ac9",
+  "ts": "2026-10-11T22:29:25+00:00",
+  "text": "sudo install -m 644 /dev/stdin /etc/systemd/system/minecraft.service over ssh fails with 'install: No such file or directory'; the same with -D works, sudo tee works",
+  "tags": [
+    "shell",
+    "ssh"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "7dad105a",
+  "where": "install",
+  "branch": "t3/apply-server-plan"
+}
