@@ -253,7 +253,7 @@ write_files:
   - path: /opt/minecraft/config/luckperms/luckperms.conf
     content: |
       storage-method = "yaml"
-  - path: /opt/minecraft/config/luckperms/yaml-storage/groups/default.yml
+  - path: /opt/minecraft/mods/luckperms/yaml-storage/groups/default.yml
     content: |
       name: default
       permissions:
