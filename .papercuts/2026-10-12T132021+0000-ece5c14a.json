@@ -1,0 +1,14 @@
+{
+  "id": "ece5c14a",
+  "ts": "2026-10-12T13:20:21+00:00",
+  "text": "preview_snapshot and preview_navigate time out (15s) on a background tab opened with open=false running a WebGL map",
+  "tags": [
+    "browser",
+    "tools"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "ce8ab590",
+  "where": "mcp__t3-code__preview_snapshot",
+  "branch": "t3/fix-player-tracker-zoom"
+}

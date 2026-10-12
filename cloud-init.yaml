@@ -80,7 +80,7 @@ write_files:
     content: |
       [Service]
       User=minecraft
-      ExecStart=/bin/sh -c 'while :; do python3 -I /usr/local/bin/ping.py localhost 25565 > /opt/bluemap/web/status.json; python3 -I /usr/local/bin/mc-skins; sleep 10; done'
+      ExecStart=/bin/sh -c 'while :; do python3 -I /usr/local/bin/ping.py localhost 25565 > /opt/bluemap/web/status.json; python3 -I /usr/local/bin/mc-skins; python3 -I /usr/local/bin/mc-nicknames; sleep 10; done'
       Restart=always
 
       [Install]
@@ -110,6 +110,18 @@ write_files:
           models[player["id"]] = skin.get("metadata", {}).get("model", "classic")
           json.dump(models, open(f"{skins}/models.json", "w"))
           open(path, "wb").write(png)
+  - path: /usr/local/bin/mc-nicknames
+    content: |
+      import glob, gzip, json, os, re
+      nicknames = {}
+      for path in glob.glob("/opt/minecraft/world/modplayerdata/*.dat"):
+          try:
+              data = gzip.open(path).read()
+          except (OSError, EOFError):
+              continue
+          if match := re.search(rb"\x08\x00\x08nickname(..)", data, re.S):
+              nicknames[os.path.basename(path)[:-4]] = data[match.end():match.end() + int.from_bytes(match[1])].decode(errors="replace")
+      json.dump(nicknames, open("/opt/bluemap/web/nicknames.json", "w"))
   - path: /usr/local/bin/mc-backup
     permissions: "0755"
     content: |
@@ -223,7 +235,7 @@ write_files:
       enable_invuln=false
       enable_motd=false
       enable_near=false
-      enable_nick=false
+      enable_nick=true
       enable_night=false
       enable_repair=false
       enable_rtp=false
@@ -236,6 +248,20 @@ write_files:
       enable_warp=false
       enable_wastebin=false
       enable_workbench=false
+      nickname_prefix={"text":""}
+      use_permissions_api=true
+  - path: /opt/minecraft/config/luckperms/luckperms.conf
+    content: |
+      storage-method = "yaml"
+  - path: /opt/minecraft/config/luckperms/yaml-storage/groups/default.yml
+    content: |
+      name: default
+      permissions:
+        - essentialcommands.tpa
+        - essentialcommands.tpaccept
+        - essentialcommands.tpdeny
+        - essentialcommands.tpahere
+        - essentialcommands.nickname.self
   - path: /opt/minecraft/config/fabric_loader_dependencies.json
     content: |
       {
@@ -316,14 +342,13 @@ write_files:
       const who = document.createElement("p");
       const players = document.createElement("div");
       players.id = "mc-players";
-      const countdown = document.createElement("small");
       panel.id = "mc-panel";
       settings.id = "mc-settings";
       settings.hidden = true;
       gear.textContent = "⚙︎";
       gear.title = "Settings";
       gear.onclick = () => gear.classList.toggle("active", !(settings.hidden = !settings.hidden));
-      card.append(nav, who, players, countdown);
+      card.append(nav, who, players);
       document.title = "Minecraft World Map | mc.ola-vassbotn.no";
       const favicon = document.querySelector("link[rel~=icon]") || document.createElement("link");
       favicon.rel = "icon";
@@ -423,6 +448,7 @@ write_files:
 
       const follow = async id => {
         const cm = bluemap.mapViewer.controlsManager;
+        if (cm.controls === bluemap.freeFlightControls) bluemap.setPerspectiveView(0, 40);
         cm.controls?.stopFollowingPlayerMarker?.();
         let marker = bluemap.playerMarkerManager?.getPlayerMarker(id);
         if (!marker || marker.data.foreign) {
@@ -437,41 +463,42 @@ write_files:
         tick();
       };
 
-      let checked = 0;
-      let next = 0;
-      const poll = async () => {
-        const response = await fetch("status.json", { cache: "no-store" }).catch(() => null);
-        checked = Date.parse(response?.headers.get("Last-Modified")) || checked;
-        const status = await response?.json().catch(() => null);
-        const sample = status?.players.sample ?? [];
-        who.className = status ? "online" : "offline";
-        who.textContent = status ? `${status.players.online}/${status.players.max} online` : "Server offline";
-        players.replaceChildren(...sample.map(player => {
-          const row = document.createElement("button");
-          const head = document.createElement("img");
-          const name = document.createElement("span");
-          row.value = player.id;
-          row.onclick = () => follow(player.id);
-          head.addEventListener("error", () => head.src = "assets/steve.png", { once: true });
-          head.src = `${bluemap.mapViewer.map?.data.mapDataRoot}/assets/playerheads/${player.id}.png`;
-          head.alt = "";
-          head.width = 24;
-          head.height = 24;
-          name.textContent = player.name;
-          row.append(head, name);
-          return row;
-        }));
-        const delay = Math.min(10000, Math.max(1000, checked + 11000 - Date.now()));
-        next = Date.now() + delay;
-        setTimeout(poll, delay);
-        tick();
+      let nicknames = {};
+      const nick = () => fetch("nicknames.json", { cache: "no-store" }).then(r => r.json()).then(data => nicknames = data).catch(() => {});
+      const updateFromData = BlueMap.PlayerMarker.prototype.updateFromData;
+      BlueMap.PlayerMarker.prototype.updateFromData = function (data) {
+        updateFromData.call(this, { ...data, name: nicknames[this.data.playerUuid]?.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`) ?? data.name });
       };
+      nick();
+      setInterval(nick, 10000);
+
+      let listed = "";
       const tick = () => {
+        const online = [...bluemap.mapViewer.markers.markerSets.get("bm-players")?.markers.values() ?? []].map(marker => marker.data);
+        const key = online.map(player => player.playerUuid + player.name).join();
+        if (key !== listed) {
+          listed = key;
+          who.textContent = `${online.length} online`;
+          players.replaceChildren(...online.map(player => {
+            const row = document.createElement("button");
+            const head = document.createElement("img");
+            const name = document.createElement("span");
+            row.value = player.playerUuid;
+            row.onclick = () => follow(player.playerUuid);
+            head.addEventListener("error", () => head.src = "assets/steve.png", { once: true });
+            head.src = `${bluemap.mapViewer.map?.data.mapDataRoot}/assets/playerheads/${player.playerUuid}.png`;
+            head.alt = "";
+            head.width = 24;
+            head.height = 24;
+            name.textContent = nicknames[player.playerUuid] ?? player.name;
+            row.append(head, name);
+            return row;
+          }));
+        }
         const following = bluemap.mapViewer.controlsManager.controls?.data?.followingPlayer?.playerUuid;
         players.querySelectorAll("button").forEach(row => row.classList.toggle("active", row.value === following));
-        countdown.textContent = next ? `Next check in ${Math.max(0, Math.ceil((next - Date.now()) / 1000))} s` : "";
       };
-      poll();
+      tick();
       setInterval(tick, 1000);
 
       const Three = BlueMap.Three;
@@ -689,9 +716,6 @@ write_files:
         margin-right: .4em;
         color: #22c55e;
       }
-      #mc-panel p.offline::before {
-        color: #ef4444;
-      }
       #mc-players {
         display: grid;
         gap: .25em;
@@ -706,12 +730,6 @@ write_files:
       }
       #mc-players img {
         image-rendering: pixelated;
-      }
-      #mc-panel small {
-        display: block;
-        padding: 0 .5em .25em;
-        font-size: .75em;
-        color: var(--theme-fg-light);
       }
       #mc-settings label {
         display: grid;
@@ -763,12 +781,14 @@ runcmd:
   - curl -sSfLo /opt/minecraft/mods/lithium.jar https://cdn.modrinth.com/data/gvQqBUqZ/versions/xS0Q8LSi/lithium-fabric-0.26.2%2Bmc26.3.jar
   - curl -sSfLo /opt/minecraft/mods/bluemap.jar https://cdn.modrinth.com/data/swbUV1cr/versions/SX74rxzP/bluemap-5.29-fabric.jar
   - curl -sSfLo /opt/minecraft/mods/share-the-spare.jar https://cdn.modrinth.com/data/eSkHOxDo/versions/KEuEGVhr/sharethespare-26.2-1.0.0.jar
+  - curl -sSfLo /opt/minecraft/mods/luckperms.jar https://cdn.modrinth.com/data/Vebnzrzj/versions/DzQPkkXY/LuckPerms-Fabric-5.5.85.jar
   - curl -sSfLo /opt/minecraft/mods/trade-cycling.jar https://cdn.modrinth.com/data/qpPoAL6m/versions/URzCi2W4/trade-cycling-fabric-1.0.22%2B26.3.jar
   - cd /opt/minecraft/mods && echo "5ab70908952f1d2346d16b122ca31327f4055db59c279a1bc3c3c581ce359bb541cba15730f55b0727be7c7c4debc4a4412a183c228e0d4dea81c734f7b412ce  fabric-api.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "6edda40084a85446817e1c393f8ea0a386300762c553990ee2bf613a93623f883be752824635f3d7f1d2a89c7b247cc246afd18a1e0d293ff022433b301e180e  essential-commands.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "4d7fee66132eedc71feab9390b92c95d7058edbdad0fecfac1d836a2950b97a7ca463afbede61c7ef361ce65e1f927ab9e89dde5bf2e0e0ce486afb5c5dbee40  lithium.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "032a96971437e43a3722d8d6c026aeb9837117e1a56521d017a68fce8bb5630ceffd98454672b9d6c589a1008fcd2ab4cd48f4af8fadf08755313b1e326bedb1  bluemap.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "4db886c75c61b28c732695812453e621fdf4f440b10c29778be65a406135e6633ca549f79808157b4a4ab442541e5eb50edcfd0c81d0b6b042e2b295c06b1ce4  share-the-spare.jar" | sha512sum -c
+  - cd /opt/minecraft/mods && echo "37de9e16272b6bbf82f422ddf012fa810d32c617c5621919157b662b4edfe956a870c5bc3ca4b05f32c90d7135f0ac2580ea16cd7c481c26a04778f639c3f89c  luckperms.jar" | sha512sum -c
   - cd /opt/minecraft/mods && echo "454dfd7f0c89155dac0ddc2b1bd69486c439d27a21480d8ff6dac46c1e3b7809e0ae28101bd31fb869999ac2afa58c2b8f153046b85f9545cee432ae396b2cac  trade-cycling.jar" | sha512sum -c
   - install -d -o minecraft -g minecraft /opt/bluemap/web/fonts /opt/bluemap/web/skins
   - curl -sSfLo /tmp/minecraft-fonts.zip https://github.com/macimas-fonts/macsMinecraft/releases/download/1.03/macsMinecraft%2Bwoff2.zip
