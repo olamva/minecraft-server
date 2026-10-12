@@ -436,6 +436,7 @@ write_files:
 
       const follow = async id => {
         const cm = bluemap.mapViewer.controlsManager;
+        if (cm.controls === bluemap.freeFlightControls) bluemap.setPerspectiveView(0, 40);
         cm.controls?.stopFollowingPlayerMarker?.();
         let marker = bluemap.playerMarkerManager?.getPlayerMarker(id);
         if (!marker || marker.data.foreign) {
