@@ -1,0 +1,14 @@
+{
+  "id": "f8e1ac84",
+  "ts": "2026-10-12T13:47:28+00:00",
+  "text": "BlueMap webserver sends status.js with no Cache-Control, so a reload after a deploy still runs the old script from the heuristic cache",
+  "tags": [
+    "bluemap",
+    "deploy"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "877cb758",
+  "where": "/opt/bluemap/web/status.js",
+  "branch": "t3/capture-drag-cursor"
+}
