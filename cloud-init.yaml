@@ -80,7 +80,7 @@ write_files:
     content: |
       [Service]
       User=minecraft
-      ExecStart=/bin/sh -c 'while :; do python3 -I /usr/local/bin/ping.py localhost 25565 > /opt/bluemap/web/status.json; python3 -I /usr/local/bin/mc-skins; sleep 10; done'
+      ExecStart=/bin/sh -c 'while :; do python3 -I /usr/local/bin/ping.py localhost 25565 > /opt/bluemap/web/status.json; python3 -I /usr/local/bin/mc-skins; python3 -I /usr/local/bin/mc-nicknames; sleep 10; done'
       Restart=always
 
       [Install]
@@ -110,6 +110,18 @@ write_files:
           models[player["id"]] = skin.get("metadata", {}).get("model", "classic")
           json.dump(models, open(f"{skins}/models.json", "w"))
           open(path, "wb").write(png)
+  - path: /usr/local/bin/mc-nicknames
+    content: |
+      import glob, gzip, json, os, re
+      nicknames = {}
+      for path in glob.glob("/opt/minecraft/world/modplayerdata/*.dat"):
+          try:
+              data = gzip.open(path).read()
+          except (OSError, EOFError):
+              continue
+          if match := re.search(rb"\x08\x00\x08nickname(..)", data, re.S):
+              nicknames[os.path.basename(path)[:-4]] = data[match.end():match.end() + int.from_bytes(match[1])].decode(errors="replace")
+      json.dump(nicknames, open("/opt/bluemap/web/nicknames.json", "w"))
   - path: /usr/local/bin/mc-backup
     permissions: "0755"
     content: |
@@ -236,6 +248,7 @@ write_files:
       enable_warp=false
       enable_wastebin=false
       enable_workbench=false
+      nickname_prefix={"text":""}
       use_permissions_api=true
   - path: /opt/minecraft/config/luckperms/luckperms.conf
     content: |
@@ -329,14 +342,13 @@ write_files:
       const who = document.createElement("p");
       const players = document.createElement("div");
       players.id = "mc-players";
-      const countdown = document.createElement("small");
       panel.id = "mc-panel";
       settings.id = "mc-settings";
       settings.hidden = true;
       gear.textContent = "⚙︎";
       gear.title = "Settings";
       gear.onclick = () => gear.classList.toggle("active", !(settings.hidden = !settings.hidden));
-      card.append(nav, who, players, countdown);
+      card.append(nav, who, players);
       document.title = "Minecraft World Map | mc.ola-vassbotn.no";
       const favicon = document.querySelector("link[rel~=icon]") || document.createElement("link");
       favicon.rel = "icon";
@@ -451,41 +463,42 @@ write_files:
         tick();
       };
 
-      let checked = 0;
-      let next = 0;
-      const poll = async () => {
-        const response = await fetch("status.json", { cache: "no-store" }).catch(() => null);
-        checked = Date.parse(response?.headers.get("Last-Modified")) || checked;
-        const status = await response?.json().catch(() => null);
-        const sample = status?.players.sample ?? [];
-        who.className = status ? "online" : "offline";
-        who.textContent = status ? `${status.players.online}/${status.players.max} online` : "Server offline";
-        players.replaceChildren(...sample.map(player => {
-          const row = document.createElement("button");
-          const head = document.createElement("img");
-          const name = document.createElement("span");
-          row.value = player.id;
-          row.onclick = () => follow(player.id);
-          head.addEventListener("error", () => head.src = "assets/steve.png", { once: true });
-          head.src = `${bluemap.mapViewer.map?.data.mapDataRoot}/assets/playerheads/${player.id}.png`;
-          head.alt = "";
-          head.width = 24;
-          head.height = 24;
-          name.textContent = player.name;
-          row.append(head, name);
-          return row;
-        }));
-        const delay = Math.min(10000, Math.max(1000, checked + 11000 - Date.now()));
-        next = Date.now() + delay;
-        setTimeout(poll, delay);
-        tick();
+      let nicknames = {};
+      const nick = () => fetch("nicknames.json", { cache: "no-store" }).then(r => r.json()).then(data => nicknames = data).catch(() => {});
+      const updateFromData = BlueMap.PlayerMarker.prototype.updateFromData;
+      BlueMap.PlayerMarker.prototype.updateFromData = function (data) {
+        updateFromData.call(this, { ...data, name: nicknames[this.data.playerUuid]?.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`) ?? data.name });
       };
+      nick();
+      setInterval(nick, 10000);
+
+      let listed = "";
       const tick = () => {
+        const online = [...bluemap.mapViewer.markers.markerSets.get("bm-players")?.markers.values() ?? []].map(marker => marker.data);
+        const key = online.map(player => player.playerUuid + player.name).join();
+        if (key !== listed) {
+          listed = key;
+          who.textContent = `${online.length} online`;
+          players.replaceChildren(...online.map(player => {
+            const row = document.createElement("button");
+            const head = document.createElement("img");
+            const name = document.createElement("span");
+            row.value = player.playerUuid;
+            row.onclick = () => follow(player.playerUuid);
+            head.addEventListener("error", () => head.src = "assets/steve.png", { once: true });
+            head.src = `${bluemap.mapViewer.map?.data.mapDataRoot}/assets/playerheads/${player.playerUuid}.png`;
+            head.alt = "";
+            head.width = 24;
+            head.height = 24;
+            name.textContent = nicknames[player.playerUuid] ?? player.name;
+            row.append(head, name);
+            return row;
+          }));
+        }
         const following = bluemap.mapViewer.controlsManager.controls?.data?.followingPlayer?.playerUuid;
         players.querySelectorAll("button").forEach(row => row.classList.toggle("active", row.value === following));
-        countdown.textContent = next ? `Next check in ${Math.max(0, Math.ceil((next - Date.now()) / 1000))} s` : "";
       };
-      poll();
+      tick();
       setInterval(tick, 1000);
 
       const Three = BlueMap.Three;
@@ -703,9 +716,6 @@ write_files:
         margin-right: .4em;
         color: #22c55e;
       }
-      #mc-panel p.offline::before {
-        color: #ef4444;
-      }
       #mc-players {
         display: grid;
         gap: .25em;
@@ -720,12 +730,6 @@ write_files:
       }
       #mc-players img {
         image-rendering: pixelated;
-      }
-      #mc-panel small {
-        display: block;
-        padding: 0 .5em .25em;
-        font-size: .75em;
-        color: var(--theme-fg-light);
       }
       #mc-settings label {
         display: grid;

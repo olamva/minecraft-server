@@ -9,7 +9,7 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 - Essential Commands uses the permissions API. Without a grant, each Essential Commands node needs op level 2. The LuckPerms group `default` in `config/luckperms/yaml-storage/groups/default.yml` grants the tpa nodes and `essentialcommands.nickname.self`.
 - The server also runs Share The Spare and Trade Cycling. Share The Spare uses the 26.2 build with the override in `config/fabric_loader_dependencies.json`.
 - The BlueMap mod replaces the BlueMap CLI and the `bluemap` unit. It renders in the server process.
-- `https://mc.ola-vassbotn.no` shows a BlueMap map of the chunks that players visited, with live player positions. Near the camera, a player shows as a 3D model with the skin from `mc-skins`.
+- `https://mc.ola-vassbotn.no` shows a BlueMap map of the chunks that players visited, with live player positions. The map shows the Essential Commands nickname from `mc-nicknames` in place of the player name. Near the camera, a player shows as a 3D model with the skin from `mc-skins`.
 - The timer `mc-backup` makes a snapshot of the world every 30 minutes when a player was online since the last snapshot. It keeps the last 48 snapshots in `/var/backups/minecraft`. `latest` points to the newest snapshot. Unchanged files are hard links.
 
 ## Rules
@@ -25,7 +25,7 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 ## Files
 
 - `provision.sh`: launch, migration and resize loop for the A1 VM.
-- `cloud-init.yaml`: setup for the A1 VM. Java 25, Caddy, Fabric with the mods and their config, the BlueMap web panel, `mc-skins`, systemd units `minecraft`, `mcstatus` and `mc-backup`, firewall rule for 25565, 80 and 443.
+- `cloud-init.yaml`: setup for the A1 VM. Java 25, Caddy, Fabric with the mods and their config, the BlueMap web panel, `mc-skins`, `mc-nicknames`, systemd units `minecraft`, `mcstatus` and `mc-backup`, firewall rule for 25565, 80 and 443.
 - `ping.py`: Minecraft status ping. It prints the status as JSON. Run `python3 -I ping.py <host> 25565`. `provision.sh` copies it to `/usr/local/bin/ping.py` on the VM for `mcstatus`.
 - `totp.py`: prints the current Oracle MFA code from a seed on stdin.
 - `server-icon.svg`, `server-icon.png`: the server icon.
