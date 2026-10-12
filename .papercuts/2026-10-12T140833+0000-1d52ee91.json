@@ -1,0 +1,14 @@
+{
+  "id": "1d52ee91",
+  "ts": "2026-10-12T14:08:33+00:00",
+  "text": "Auto-mode classifier denied gh pr merge --auto --merge as Merge Without Review, with Bash(gh pr merge:*) in the new project .claude/settings.json",
+  "tags": [
+    "git",
+    "permissions"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "f501c7a1",
+  "where": "gh pr merge --auto",
+  "branch": "t3/settle-branches-parallel-setup"
+}

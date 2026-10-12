@@ -1,3 +1,4 @@
 .notes/*.log
 .notes/*.err
 server-icon-preview.png
+node_modules/
