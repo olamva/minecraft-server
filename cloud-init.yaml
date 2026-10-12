@@ -420,6 +420,11 @@ write_files:
       controls.hammer.on("zoomstart zoommove", e => pinch = e.center);
       towardPoint(controls.mouseZoom, () => cursor);
       towardPoint(controls.touchZoom, () => pinch);
+      addEventListener("mousedown", () => controls.mouseRotate.moving && controls.rootElement.requestPointerLock()?.catch(() => {}));
+      addEventListener("mouseup", () => controls.mouseRotate.moving && document.exitPointerLock(), true);
+      addEventListener("mousemove", e => {
+        if (controls.mouseRotate.moving && document.pointerLockElement) [controls.mouseRotate.lastX, controls.mouseAngle.lastY] = [e.x - e.movementX, e.y - e.movementY];
+      }, true);
 
       const follow = async id => {
         const cm = bluemap.mapViewer.controlsManager;
