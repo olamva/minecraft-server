@@ -8,7 +8,7 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 - The server runs Fabric with Fabric API, Essential Commands (`/tpa` and `/nickname` only), LuckPerms, Lithium and BlueMap.
 - Essential Commands uses the permissions API. Without a grant, each Essential Commands node needs op level 2. LuckPerms reads `config/luckperms/luckperms.conf`, but it keeps its data in `mods/luckperms`. The LuckPerms group `default` in `mods/luckperms/yaml-storage/groups/default.yml` grants the tpa nodes and `essentialcommands.nickname.self`.
 - The server also runs Share The Spare and Trade Cycling. Share The Spare uses the 26.2 build with the override in `config/fabric_loader_dependencies.json`.
-- `server.properties` sets `view-distance=32`. Each player can choose a render distance up to 32 chunks. `simulation-distance` stays at 10.
+- `server.properties` sets `view-distance=32`. Each player can choose a render distance up to 32 chunks. `simulation-distance=20` sets the distance in which the server ticks mobs, crops and redstone. It is the same for all players.
 - The BlueMap mod replaces the BlueMap CLI and the `bluemap` unit. It renders in the server process.
 - `https://mc.ola-vassbotn.no` shows a BlueMap map of the chunks that players visited, with live player positions. The map shows the Essential Commands nickname from `mc-nicknames` in place of the player name. Near the camera, a player shows as a 3D model with the skin from `mc-skins`.
 - The timer `mc-backup` makes a snapshot of the world every 30 minutes when a player was online since the last snapshot. It keeps the last 48 snapshots in `/var/backups/minecraft`. `latest` points to the newest snapshot. Unchanged files are hard links.
