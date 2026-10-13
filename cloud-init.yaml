@@ -179,7 +179,7 @@ write_files:
     content: |
       webroot: "/opt/bluemap/web"
       hires-slider-default: 200
-      scripts: ["status.js"]
+      scripts: ["status.js?v=2"]
       styles: ["status.css"]
   - path: /opt/minecraft/config/bluemap/storages/file.conf
     content: |

@@ -1,0 +1,13 @@
+{
+  "id": "519bf6a9",
+  "ts": "2026-10-13T13:54:36+00:00",
+  "text": "worktree:cleanup --branch-only failed right after the PR merged, then passed on an immediate retry",
+  "tags": [
+    "tools"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "ea4869b7",
+  "where": "scripts/worktree-cleanup.ts",
+  "branch": ""
+}
