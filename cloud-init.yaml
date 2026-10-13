@@ -220,6 +220,7 @@ write_files:
     content: |
       difficulty=hard
       motd=§a§lmc.ola-vassbotn.no
+      simulation-distance=20
       view-distance=32
       white-list=true
   - path: /opt/minecraft/config/EssentialCommands.properties
