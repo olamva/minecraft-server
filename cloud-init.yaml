@@ -155,6 +155,7 @@ write_files:
     defer: true
     content: |
       mc.ola-vassbotn.no {
+        header /status.* Cache-Control no-cache
         @font path /fonts/*.woff2
         handle @font {
           reverse_proxy 127.0.0.1:8100 {
