@@ -215,6 +215,13 @@ write_files:
       ambient-light: 0.6
       min-inhabited-time: 1
       remove-caves-below-y: -10000
+  - path: /opt/minecraft/server.properties
+    permissions: "0640"
+    content: |
+      difficulty=hard
+      motd=§a§lmc.ola-vassbotn.no
+      view-distance=32
+      white-list=true
   - path: /opt/minecraft/config/EssentialCommands.properties
     content: |
       auto_afk_enabled=false
