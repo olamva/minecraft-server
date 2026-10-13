@@ -257,7 +257,10 @@ write_files:
       enable_warp=false
       enable_wastebin=false
       enable_workbench=false
+      nickname_above_head=true
+      nickname_max_length=16
       nickname_prefix={"text":""}
+      nicknames_must_be_unique=true
       use_permissions_api=true
   - path: /opt/minecraft/config/luckperms/luckperms.conf
     content: |
