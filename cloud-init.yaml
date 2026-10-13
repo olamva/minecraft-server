@@ -485,13 +485,16 @@ write_files:
       nick();
       setInterval(nick, 10000);
 
+      let max = "";
+      fetch("status.json", { cache: "no-store" }).then(r => r.json()).then(status => max = `/${status.players.max}`).catch(() => {});
+
       let listed = "";
       const tick = () => {
         const online = [...bluemap.mapViewer.markers.markerSets.get("bm-players")?.markers.values() ?? []].map(marker => marker.data);
         const key = online.map(player => player.playerUuid + player.name).join();
+        who.textContent = `${online.length}${max} online`;
         if (key !== listed) {
           listed = key;
-          who.textContent = `${online.length} online`;
           players.replaceChildren(...online.map(player => {
             const row = document.createElement("button");
             const head = document.createElement("img");
