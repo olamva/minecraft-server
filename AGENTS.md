@@ -7,7 +7,7 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 - The server runs on the Always Free A1 VM `minecraft` (VM.Standard.A1.Flex, 4 OCPU / 24 GB, Ubuntu 26.04) in `/opt/minecraft`, systemd unit `minecraft`.
 - The server runs Fabric with Fabric API, Essential Commands (`/tpa` and `/nickname` only), LuckPerms, Lithium and BlueMap.
 - Essential Commands uses the permissions API. Without a grant, each Essential Commands node needs op level 2. LuckPerms reads `config/luckperms/luckperms.conf`, but it keeps its data in `mods/luckperms`. The LuckPerms group `default` in `mods/luckperms/yaml-storage/groups/default.yml` grants the tpa nodes and `essentialcommands.nickname.self`.
-- Essential Commands shows the nickname above the head of the player. The nametag is plain text with 16 characters at most. Other players see a new nickname after the player reconnects.
+- Essential Commands shows the nickname above the head of the player. A nickname can be the same as a Mojang username or the nickname of another player. The nametag is plain text with 16 characters at most. Other players see a new nickname after the player reconnects.
 - The server also runs Share The Spare and Trade Cycling. Share The Spare uses the 26.2 build with the override in `config/fabric_loader_dependencies.json`.
 - `server.properties` sets `view-distance=32`. Each player can choose a render distance up to 32 chunks. `simulation-distance=20` sets the distance in which the server ticks mobs, crops and redstone. It is the same for all players.
 - The BlueMap mod replaces the BlueMap CLI and the `bluemap` unit. It renders in the server process.
