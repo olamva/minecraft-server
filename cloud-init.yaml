@@ -260,7 +260,7 @@ write_files:
       nickname_above_head=true
       nickname_max_length=16
       nickname_prefix={"text":""}
-      nicknames_must_be_unique=true
+      nicknames_must_be_unique=false
       use_permissions_api=true
   - path: /opt/minecraft/config/luckperms/luckperms.conf
     content: |
