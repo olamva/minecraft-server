@@ -221,9 +221,28 @@ write_files:
     content: |
       difficulty=hard
       motd=§a§lmc.ola-vassbotn.no
+      resource-pack=https://mc.ola-vassbotn.no/resource-pack.zip
+      resource-pack-sha1=3245464b031c684ed437e496d0ba5126dfc720dc
       simulation-distance=20
       view-distance=32
       white-list=true
+  - path: /opt/minecraft/world/datapacks/cat-disc/pack.mcmeta
+    content: |
+      {
+        "pack": {
+          "description": "Cat disc: Toad - Chandelier",
+          "max_format": 121,
+          "min_format": 121
+        }
+      }
+  - path: /opt/minecraft/world/datapacks/cat-disc/data/minecraft/jukebox_song/cat.json
+    content: |
+      {
+        "comparator_output": 2,
+        "description": "Toad - Chandelier",
+        "length_in_seconds": 212.9,
+        "sound_event": "minecraft:music_disc.cat"
+      }
   - path: /opt/minecraft/config/EssentialCommands.properties
     content: |
       auto_afk_enabled=false
