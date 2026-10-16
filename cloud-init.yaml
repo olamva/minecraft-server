@@ -221,8 +221,9 @@ write_files:
     content: |
       difficulty=hard
       motd=§a§lmc.ola-vassbotn.no
+      require-resource-pack=true
       resource-pack=https://mc.ola-vassbotn.no/resource-pack.zip
-      resource-pack-sha1=3245464b031c684ed437e496d0ba5126dfc720dc
+      resource-pack-sha1=9dcff6b0ac43ad09c3f16f43dcbb21be2d952216
       simulation-distance=20
       view-distance=32
       white-list=true
