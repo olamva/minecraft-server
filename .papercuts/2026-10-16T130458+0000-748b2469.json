@@ -1,0 +1,14 @@
+{
+  "id": "748b2469",
+  "ts": "2026-10-16T13:04:58+00:00",
+  "text": "sudo -u minecraft tee into a minecraft-owned dir on the A1 VM fails with 'Permission denied (os error 13)'; sudo tee plus chown works",
+  "tags": [
+    "sudo",
+    "vm"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "6bd9afcf",
+  "where": "ssh ubuntu@82.70.43.201",
+  "branch": "t3/cat-disc-resource-pack"
+}
