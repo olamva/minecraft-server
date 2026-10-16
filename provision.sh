@@ -53,6 +53,7 @@ for _ in $(seq 1 60); do "${VM[@]}" true 2> /dev/null && break; sleep 15; done
 "${VM[@]}" 'cloud-init status --wait > /dev/null; cloud-init status' | grep -q 'status: done' || fail "cloud-init: $("${VM[@]}" 'cloud-init status --long' 2>&1 | tail -5)"
 "${VM[@]}" 'java -version 2>&1 | head -1; sudo iptables -S INPUT | grep 25565; systemctl is-enabled minecraft' || fail "VM check"
 "${VM[@]}" 'sudo tee /usr/local/bin/ping.py > /dev/null' < "$D/ping.py" || fail "ping.py copy"
+"${VM[@]}" 'sudo tee /opt/bluemap/web/resource-pack.zip > /dev/null' < "$D/resource-pack.zip" || fail "resource-pack.zip copy"
 log "VM ready"
 
 log "world copied"
