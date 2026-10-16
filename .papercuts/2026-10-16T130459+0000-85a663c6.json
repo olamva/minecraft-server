@@ -1,0 +1,14 @@
+{
+  "id": "85a663c6",
+  "ts": "2026-10-16T13:04:59+00:00",
+  "text": "HEAD requests to https://mc.ola-vassbotn.no/<file> return 400 from the BlueMap webserver; only GET works, so curl -I is useless for checks",
+  "tags": [
+    "http",
+    "vm"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "6bd9afcf",
+  "where": "https://mc.ola-vassbotn.no",
+  "branch": "t3/cat-disc-resource-pack"
+}
