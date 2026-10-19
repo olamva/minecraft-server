@@ -183,7 +183,7 @@ write_files:
       EnvironmentFile=/etc/f1/env
       Environment=DATA_DIR=/srv/f1
       Volume=/srv/f1:/srv/f1
-      PublishPort=127.0.0.1:8080:8080
+      Network=host
 
       [Service]
       CPUWeight=1
