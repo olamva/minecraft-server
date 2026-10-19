@@ -5,7 +5,6 @@ packages:
   - iptables-persistent
   - caddy
   - rsync
-  - podman
 users:
   - default
   - name: minecraft
@@ -167,39 +166,6 @@ write_files:
           reverse_proxy 127.0.0.1:8100
         }
       }
-
-      f1.ola-vassbotn.no {
-        reverse_proxy 127.0.0.1:8080
-      }
-  - path: /etc/containers/systemd/f1.container
-    content: |
-      [Unit]
-      Wants=network-online.target
-      After=network-online.target
-
-      [Container]
-      Image=ghcr.io/olamva/f1:latest
-      AutoUpdate=registry
-      EnvironmentFile=/etc/f1/env
-      Environment=DATA_DIR=/srv/f1
-      Volume=/srv/f1:/srv/f1
-      Network=host
-
-      [Service]
-      CPUWeight=1
-      IOWeight=1
-      Nice=19
-      MemoryMax=1G
-      Restart=always
-
-      [Install]
-      WantedBy=multi-user.target
-  - path: /etc/systemd/system/podman-auto-update.timer.d/every-5-minutes.conf
-    content: |
-      [Timer]
-      OnCalendar=
-      OnCalendar=*:0/5
-      RandomizedDelaySec=0
   - path: /opt/minecraft/config/bluemap/core.conf
     content: |
       accept-download: true
@@ -871,11 +837,6 @@ runcmd:
   - chown -R minecraft:minecraft /opt/minecraft /opt/bluemap
   - iptables -I INPUT -p tcp -m multiport --dports 25565,80,443 -m state --state NEW -j ACCEPT
   - netfilter-persistent save
-  - install -d -m 700 /etc/f1
-  - test -e /etc/f1/env || install -m 600 /dev/null /etc/f1/env
-  - install -d -m 700 /srv/f1
-  - chown 65532:65532 /srv/f1
   - systemctl daemon-reload
-  - systemctl enable minecraft.service mcstatus.service mc-backup.timer podman-auto-update.timer
-  - systemctl start f1.service
+  - systemctl enable minecraft.service mcstatus.service mc-backup.timer
   - systemctl restart caddy
