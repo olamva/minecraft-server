@@ -873,7 +873,8 @@ runcmd:
   - netfilter-persistent save
   - install -d -m 700 /etc/f1
   - test -e /etc/f1/env || install -m 600 /dev/null /etc/f1/env
-  - install -d -o 65532 -g 65532 -m 700 /srv/f1
+  - install -d -m 700 /srv/f1
+  - chown 65532:65532 /srv/f1
   - systemctl daemon-reload
   - systemctl enable minecraft.service mcstatus.service mc-backup.timer podman-auto-update.timer
   - systemctl start f1.service
