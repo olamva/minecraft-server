@@ -13,6 +13,9 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 - The server sends the resource pack `https://mc.ola-vassbotn.no/resource-pack.zip` to each player. The pack is required: the server disconnects a player who declines it. The pack replaces the Cat music disc with "toad sings chandelier". The data pack `world/datapacks/cat-disc` sets the disc name to "Toad - Chandelier" and the song length to 212.9 seconds. Without the length, the jukebox stops the song after 185 seconds.
 - The BlueMap mod replaces the BlueMap CLI and the `bluemap` unit. It renders in the server process.
 - `https://mc.ola-vassbotn.no` shows a BlueMap map of the chunks that players visited, with live player positions. The map shows the Essential Commands nickname from `mc-nicknames` in place of the player name. Near the camera, a player shows as a 3D model with the skin from `mc-skins`.
+- The VM also runs F1 Pitwall at `https://f1.ola-vassbotn.no`. The podman quadlet `f1` runs `ghcr.io/olamva/f1:latest` on `127.0.0.1:8080`. The repository `olamva/f1` owns the app.
+- The `f1` unit has `CPUWeight=1`, `IOWeight=1`, `Nice=19` and `MemoryMax=1G`. Minecraft keeps the priority for CPU and disk.
+- `podman-auto-update.timer` pulls a new F1 image every 5 minutes. The F1 secrets are in `/etc/f1/env` with mode 0600. The F1 data is in `/srv/f1`.
 - The timer `mc-backup` makes a snapshot of the world every 30 minutes when a player was online since the last snapshot. It keeps the last 48 snapshots in `/var/backups/minecraft`. `latest` points to the newest snapshot. Unchanged files are hard links.
 
 ## Rules
@@ -28,7 +31,7 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 ## Files
 
 - `provision.sh`: launch, migration and resize loop for the A1 VM.
-- `cloud-init.yaml`: setup for the A1 VM. Java 25, Caddy, Fabric with the mods and their config, the non-default `server.properties` values, the `cat-disc` data pack, the BlueMap web panel, `mc-skins`, `mc-nicknames`, systemd units `minecraft`, `mcstatus` and `mc-backup`, firewall rule for 25565, 80 and 443.
+- `cloud-init.yaml`: setup for the A1 VM. Java 25, Caddy, Fabric with the mods and their config, the non-default `server.properties` values, the `cat-disc` data pack, the BlueMap web panel, `mc-skins`, `mc-nicknames`, systemd units `minecraft`, `mcstatus` and `mc-backup`, firewall rule for 25565, 80 and 443. It also sets up podman, the F1 Pitwall quadlet `f1`, the `podman-auto-update.timer` interval and the Caddy site `f1.ola-vassbotn.no`.
 - `ping.py`: Minecraft status ping. It prints the status as JSON. Run `python3 -I ping.py <host> 25565`. `provision.sh` copies it to `/usr/local/bin/ping.py` on the VM for `mcstatus`.
 - `totp.py`: prints the current Oracle MFA code from a seed on stdin.
 - `server-icon.svg`, `server-icon.png`: the server icon.
