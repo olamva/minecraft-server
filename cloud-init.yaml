@@ -223,7 +223,7 @@ write_files:
       motd=§a§lmc.ola-vassbotn.no
       require-resource-pack=true
       resource-pack=https://mc.ola-vassbotn.no/resource-pack.zip
-      resource-pack-sha1=9dcff6b0ac43ad09c3f16f43dcbb21be2d952216
+      resource-pack-sha1=331279cc700a8fe8c2489ac6427e2f53613ab159
       simulation-distance=20
       view-distance=32
       white-list=true
@@ -243,6 +243,23 @@ write_files:
         "description": "Toad - Chandelier",
         "length_in_seconds": 212.9,
         "sound_event": "minecraft:music_disc.cat"
+      }
+  - path: /opt/minecraft/world/datapacks/13-disc/pack.mcmeta
+    content: |
+      {
+        "pack": {
+          "description": "13 disc: ???",
+          "max_format": 121,
+          "min_format": 121
+        }
+      }
+  - path: /opt/minecraft/world/datapacks/13-disc/data/minecraft/jukebox_song/13.json
+    content: |
+      {
+        "comparator_output": 1,
+        "description": "???",
+        "length_in_seconds": 211.0,
+        "sound_event": "minecraft:music_disc.13"
       }
   - path: /opt/minecraft/config/EssentialCommands.properties
     content: |
