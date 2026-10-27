@@ -10,7 +10,7 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 - Essential Commands shows the nickname above the head of the player. A nickname can be the same as a Mojang username or the nickname of another player. The nametag is plain text with 16 characters at most. Other players see a new nickname after the player reconnects.
 - The server also runs Share The Spare and Trade Cycling. Share The Spare uses the 26.2 build with the override in `config/fabric_loader_dependencies.json`.
 - `server.properties` sets `view-distance=32`. Each player can choose a render distance up to 32 chunks. `simulation-distance=20` sets the distance in which the server ticks mobs, crops and redstone. It is the same for all players.
-- The server sends the resource pack `https://mc.ola-vassbotn.no/resource-pack.zip` to each player. The pack is required: the server disconnects a player who declines it. The pack replaces the Cat music disc with "toad sings chandelier". The data pack `world/datapacks/cat-disc` sets the disc name to "Toad - Chandelier" and the song length to 212.9 seconds. Without the length, the jukebox stops the song after 185 seconds.
+- The server sends the resource pack `https://mc.ola-vassbotn.no/resource-pack.zip` to each player. The pack is required: the server disconnects a player who declines it. The pack replaces the Cat music disc with "toad sings chandelier". The data pack `world/datapacks/cat-disc` sets the disc name to "Toad - Chandelier" and the song length to 212.9 seconds. Without the length, the jukebox stops the song after 185 seconds. The pack also replaces the 13 music disc with "Never Gonna Give You Up". The data pack `world/datapacks/13-disc` sets the disc name to "???" and the song length to 211 seconds. The name hides the song until a player hears it.
 - The BlueMap mod replaces the BlueMap CLI and the `bluemap` unit. It renders in the server process.
 - `https://mc.ola-vassbotn.no` shows a BlueMap map of the chunks that players visited, with live player positions. The map shows the Essential Commands nickname from `mc-nicknames` in place of the player name. Near the camera, a player shows as a 3D model with the skin from `mc-skins`.
 - The timer `mc-backup` makes a snapshot of the world every 30 minutes when a player was online since the last snapshot. It keeps the last 48 snapshots in `/var/backups/minecraft`. `latest` points to the newest snapshot. Unchanged files are hard links.
@@ -28,11 +28,11 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 ## Files
 
 - `provision.sh`: launch, migration and resize loop for the A1 VM.
-- `cloud-init.yaml`: setup for the A1 VM. Java 25, Caddy, Fabric with the mods and their config, the non-default `server.properties` values, the `cat-disc` data pack, the BlueMap web panel, `mc-skins`, `mc-nicknames`, systemd units `minecraft`, `mcstatus` and `mc-backup`, firewall rule for 25565, 80 and 443.
+- `cloud-init.yaml`: setup for the A1 VM. Java 25, Caddy, Fabric with the mods and their config, the non-default `server.properties` values, the `cat-disc` and `13-disc` data packs, the BlueMap web panel, `mc-skins`, `mc-nicknames`, systemd units `minecraft`, `mcstatus` and `mc-backup`, firewall rule for 25565, 80 and 443.
 - `ping.py`: Minecraft status ping. It prints the status as JSON. Run `python3 -I ping.py <host> 25565`. `provision.sh` copies it to `/usr/local/bin/ping.py` on the VM for `mcstatus`.
 - `totp.py`: prints the current Oracle MFA code from a seed on stdin.
 - `server-icon.svg`, `server-icon.png`: the server icon.
-- `resource-pack.zip`: the resource pack with the new Cat disc song. `provision.sh` copies it to `/opt/bluemap/web/resource-pack.zip`. After a change, set its SHA-1 in `resource-pack-sha1` in `cloud-init.yaml` and on the VM.
+- `resource-pack.zip`: the resource pack with the new Cat and 13 disc songs. `provision.sh` copies it to `/opt/bluemap/web/resource-pack.zip`. After a change, set its SHA-1 in `resource-pack-sha1` in `cloud-init.yaml` and on the VM.
 - `.notes/oci-ids.env`: OCIDs of the Oracle resources. `provision.sh` reads it.
 - `t3.json`, `scripts/worktree-cleanup.ts`, `.claude/settings.json`, `.codex/rules/default.rules`: setup for parallel agent work.
 
