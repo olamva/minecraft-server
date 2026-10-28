@@ -449,20 +449,25 @@ write_files:
       const mark = () => buttons.forEach(([id, button]) => button.classList.toggle("active", id === bluemap.mapViewer.map?.data.id));
 
       const edge = "if (distance < 800.0 && color.a == 0.0) discard;";
-      const cut = edge + `
-        vec2 quad = vec2(tileSize.x + 1.0) / ceil(50.0 / lod);
-        vec2 corner = floor(vPosition.xz / quad) * quad;
-        if (texture(textureImage, posToColorUV(corner)).a * texture(textureImage, posToColorUV(corner + vec2(quad.x, 0.0))).a * texture(textureImage, posToColorUV(corner + vec2(0.0, quad.y))).a * texture(textureImage, posToColorUV(corner + quad)).a == 0.0) discard;`;
-      const cutWalls = () => bluemap.mapViewer.map.lowresTileManager.forEach(manager => {
+      const height = "vPosition.y = metaToHeight(meta)";
+      const lift = `float quad = (tileSize.x + 1.0) / ceil(50.0 / lod), sum = 0.0, count = 0.0;
+        bool empty = texture(textureImage, vec2(position.x, min(position.z, tileSize.y)) / textureSize).a == 0.0;
+        for (int i = 0; empty && i < 9; i++) {
+          vec2 pos = clamp(position.xz + quad * vec2(i % 3 - 1, i / 3 - 1), 0.0, tileSize.x);
+          if (texture(textureImage, pos / textureSize).a > 0.0) { sum += metaToHeight(texture(textureImage, posToMetaUV(pos))); count++; }
+        }
+        vPosition.y = (count > 0.0 ? sum / count : metaToHeight(meta))`;
+      const liftEdges = () => bluemap.mapViewer.map.lowresTileManager.forEach(manager => {
         const shaders = [manager.tileLoader];
         manager.scene.traverse(o => o.material?.fragmentShader && shaders.push(o.material));
-        shaders.filter(shader => !shader.fragmentShader.includes("vec2 corner")).forEach(shader => {
-          shader.fragmentShader = shader.fragmentShader.replace(edge, cut);
+        shaders.filter(shader => shader.fragmentShader.includes(edge)).forEach(shader => {
+          shader.fragmentShader = shader.fragmentShader.replace(edge, "if (color.a == 0.0 || lod > 1.0 && distance < 1000.0 * lodScale && color.a < 0.85) discard;");
+          shader.vertexShader = shader.vertexShader.replace("void main() {", "uniform float lod;\nvoid main() {").replace(height, lift);
           shader.needsUpdate = true;
         });
       });
 
-      const update = () => { mark(); cutWalls(); document.title = "Minecraft World Map | mc.ola-vassbotn.no"; };
+      const update = () => { mark(); liftEdges(); document.title = "Minecraft World Map | mc.ola-vassbotn.no"; };
       bluemap.events.addEventListener("bluemapMapChanged", update);
       update();
 
