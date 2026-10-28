@@ -1,0 +1,14 @@
+{
+  "id": "d1044518",
+  "ts": "2026-10-28T12:56:29+00:00",
+  "text": "grep is ugrep on this Mac: grep -oE '.{0,300}pat' on a minified JS file fails with 'exceeds complexity limits'; used python re instead",
+  "tags": [
+    "shell",
+    "tools"
+  ],
+  "who": "agent",
+  "model": "opus-5.5",
+  "session": "7e04e64c",
+  "where": "grep",
+  "branch": "t3/investigate-map-zoom"
+}
