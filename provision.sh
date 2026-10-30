@@ -4,7 +4,6 @@ export OCI_CLI_PROFILE=API PYTHONWARNINGS=ignore SUPPRESS_LABEL_WARNING=True
 D=$(cd "$(dirname "$0")" && pwd)
 source "$D/.notes/oci-ids.env"
 T=$(awk -F= '/^\[API\]/{f=1} f&&/^tenancy/{print $2; exit}' ~/.oci/config)
-NTNU=(ssh -o BatchMode=yes -i ~/.ssh/gitntntnu olamva@login.stud.ntnu.no)
 VM=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "ubuntu@$PUBIP")
 log() { echo "$(date '+%F %T') $*"; }
 fail() { log "FAILED: $*"; exit 1; }
@@ -57,9 +56,6 @@ for _ in $(seq 1 60); do "${VM[@]}" true 2> /dev/null && break; sleep 15; done
 "${VM[@]}" 'sudo tee /opt/bluemap/web/resource-pack.zip > /dev/null' < "$D/resource-pack.zip" || fail "resource-pack.zip copy"
 log "VM ready"
 
-"${NTNU[@]}" 'tmux send-keys -t mc stop Enter 2> /dev/null; while tmux has-session -t mc 2> /dev/null; do sleep 2; done'
-"${NTNU[@]}" 'tar -C ~/minecraft --exclude=server.jar --exclude=eula.txt --exclude=libraries --exclude=versions --exclude=logs -czf - .' | "${VM[@]}" 'sudo tar -C /opt/minecraft -xzf - && sudo chown -R minecraft:minecraft /opt/minecraft' || fail "world copy"
-log "world copied"
 
 "${VM[@]}" 'sudo systemctl start minecraft mcstatus; for i in $(seq 1 120); do sudo grep -q "Done (" /opt/minecraft/logs/latest.log 2> /dev/null && exit 0; sleep 2; done; exit 1' || fail "server start: $("${VM[@]}" 'sudo journalctl -u minecraft -n 20 --no-pager' 2>&1)"
 log "PING $(python3 -I "$D/ping.py" "$PUBIP" 25565 2>&1)"
