@@ -27,7 +27,7 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 
 ## Files
 
-- `provision.sh`: launch, migration and resize loop for the A1 VM.
+- `provision.sh`: launch and resize loop for the A1 VM.
 - `cloud-init.yaml`: setup for the A1 VM. Java 25, Caddy, Fabric with the mods and their config, the non-default `server.properties` values, the `cat-disc` and `13-disc` data packs, the BlueMap web panel, `mc-skins`, `mc-nicknames`, systemd units `minecraft`, `mcstatus` and `mc-backup`, firewall rule for 25565, 80 and 443.
 - `ping.py`: Minecraft status ping. It prints the status as JSON. Run `python3 -I ping.py <host> 25565`. `provision.sh` copies it to `/usr/local/bin/ping.py` on the VM for `mcstatus`.
 - `totp.py`: prints the current Oracle MFA code from a seed on stdin.

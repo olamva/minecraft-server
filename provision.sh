@@ -56,7 +56,6 @@ for _ in $(seq 1 60); do "${VM[@]}" true 2> /dev/null && break; sleep 15; done
 "${VM[@]}" 'sudo tee /opt/bluemap/web/resource-pack.zip > /dev/null' < "$D/resource-pack.zip" || fail "resource-pack.zip copy"
 log "VM ready"
 
-log "world copied"
 
 "${VM[@]}" 'sudo systemctl start minecraft mcstatus; for i in $(seq 1 120); do sudo grep -q "Done (" /opt/minecraft/logs/latest.log 2> /dev/null && exit 0; sleep 2; done; exit 1' || fail "server start: $("${VM[@]}" 'sudo journalctl -u minecraft -n 20 --no-pager' 2>&1)"
 log "PING $(python3 -I "$D/ping.py" "$PUBIP" 25565 2>&1)"
