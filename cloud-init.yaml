@@ -11,6 +11,8 @@ users:
     system: true
     homedir: /opt/minecraft
     shell: /usr/sbin/nologin
+bootcmd:
+  - sysctl -w net.mptcp.enabled=0
 write_files:
   - path: /etc/systemd/system/minecraft.socket
     content: |
