@@ -22,6 +22,8 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 - Use `ssh ubuntu@82.70.43.201` for the A1 VM.
 - Send console commands with `ssh ubuntu@82.70.43.201 'sudo mc "<command>"'`. Read the output with `sudo journalctl -u minecraft -n 20`.
 - Change the VM setup in `cloud-init.yaml` first. Then apply the same change on the running VM.
+- Write a file on the VM with `sudo tee <path> > /dev/null`. Then run `sudo chown minecraft:minecraft <path>` for a file of the server. The VM uses uutils coreutils. `install` from `/dev/stdin` and `sudo -u minecraft tee` fail there.
+- Check a live file with `curl -fsS -o /dev/null -w '%{http_code}\n' <url>`. The BlueMap webserver answers a HEAD request with 400. Do not use `curl -I`.
 - After a BlueMap update, delete `/opt/bluemap/web/index.html` before the restart. The mod writes its web app only when `index.html` is missing.
 - Add only server-side mods. Players can use the vanilla client. Trade Cycling is the only exception: a player installs it on the client to get the trade cycling button. Do not tell players about Trade Cycling.
 
@@ -105,6 +107,7 @@ Create each temporary checkout, such as a visual review "before" state, with `gi
 Remove a temporary checkout with `git worktree remove <path>` after checking for local files.
 After merge, run `pnpm worktree:cleanup . <pr-number> --branch-only --apply` in the task worktree.
 This verifies the merged PR, detaches the checkout, and deletes the local task branch.
+Run the cleanup again after a few seconds when it fails right after the merge. GitHub deletes the remote branch after a short delay.
 Keep the active T3 worktree and thread. Remove the worktree only after T3 stops.
 Run `pnpm worktree:cleanup <path> <pr-number> --apply` from another checkout to remove an idle worktree.
 Include the cleanup status in the final response.
