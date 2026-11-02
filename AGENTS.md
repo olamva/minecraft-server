@@ -23,7 +23,6 @@ This repository holds the setup for a Minecraft 26.3 server with Fabric.
 - Send console commands with `ssh ubuntu@82.70.43.201 'sudo mc "<command>"'`. Read the output with `sudo journalctl -u minecraft -n 20`.
 - Change the VM setup in `cloud-init.yaml` first. Then apply the same change on the running VM.
 - Write a file on the VM with `sudo tee <path> > /dev/null`. Then run `sudo chown minecraft:minecraft <path>` for a file of the server. The VM uses uutils coreutils. `install` from `/dev/stdin` and `sudo -u minecraft tee` fail there.
-- Check a live file with `curl -fsS -o /dev/null -w '%{http_code}\n' <url>`. The BlueMap webserver answers a HEAD request with 400. Do not use `curl -I`.
 - After a BlueMap update, delete `/opt/bluemap/web/index.html` before the restart. The mod writes its web app only when `index.html` is missing.
 - Add only server-side mods. Players can use the vanilla client. Trade Cycling is the only exception: a player installs it on the client to get the trade cycling button. Do not tell players about Trade Cycling.
 
